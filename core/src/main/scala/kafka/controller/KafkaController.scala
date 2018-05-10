@@ -511,6 +511,8 @@ class KafkaController(val config: KafkaConfig, zkClient: KafkaZkClient, time: Ti
    * 11. Update the /admin/reassign_partitions path in ZK to remove this partition.
    * 12. After electing leader, the replicas and isr information changes. So resend the update metadata request to every broker.
    *
+    * // TODO fix description
+    *
    * For example, if OAR = {1, 2, 3} and RAR = {4,5,6}, the values in the assigned replica (AR) and leader/isr path in ZK
    * may go through the following transition.
    * AR                 leader/isr
@@ -540,6 +542,7 @@ class KafkaController(val config: KafkaConfig, zkClient: KafkaZkClient, time: Ti
       updateLeaderEpochAndSendRequest(topicPartition, controllerContext.partitionReplicaAssignment(topicPartition),
         reassignmentStep.newReplicas ++ reassignmentStep.drop)
       //3. replicas in RAR - OAR -> NewReplica
+      // TODO move foreach into startNewReplicasForReassignedPartition
       reassignmentStep.add.foreach{ brokerId =>
         startNewReplicasForReassignedPartition(topicPartition, reassignedPartitionContext, brokerId)
       }
@@ -1562,12 +1565,15 @@ private[controller] object ReassignmentHelper {
   def calculateReassignmentStep(reassignedReplicas: Seq[Int], currentReplicas: Seq[Int], leader: Int) = {
     val toBeDropped: Seq[Int] = calculateExcessISRs(reassignedReplicas, currentReplicas, leader)
     val newReplica = reassignedReplicas.filterNot(currentReplicas.contains).head
+    // TODO: check what happens if toBeDropped.isEmpty, newReplica.isEmpty or both are empty
     val newReplicas = currentReplicas.filterNot(toBeDropped.contains) :+ newReplica
     ReassignmentStep(toBeDropped, Some(newReplica), newReplicas)
   }
 
   private def calculateExcessISRs(reassignedReplicas: Seq[Int], currentReplicas: Seq[Int], leader: Int) = {
+    // TODO: what if it's negative
     val numberOfExcessISRs = currentReplicas.size - reassignedReplicas.size
+    // TODO: what if it's empty
     val notInReassigned = currentReplicas.filterNot(reassignedReplicas.contains)
     val notInReassignedPreferredOrder = notInReassigned.sortBy(brokerId => if (brokerId == leader) 1 else 0)
     notInReassignedPreferredOrder.take(numberOfExcessISRs)

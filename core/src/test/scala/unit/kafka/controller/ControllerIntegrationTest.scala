@@ -173,6 +173,26 @@ class ControllerIntegrationTest extends ZooKeeperTestHarness {
       "partition reassignment path should remain while reassignment in progress")
   }
 
+
+  // TODO: Test cases:
+  // [0, 1, 2] -> [1, 0, 2]
+  // [0, 1, 2] -> [3, 4, 5]
+  // [0, 1, 2] -> [0, 1, 3]
+  // [0, 1, 2] -> [3, 1, 2]
+  // [0, 1, 2] -> [0, 1]
+  // [0, 1, 2] -> [0]
+  // [0, 1, 2] -> [3]
+  // [0, 1, 2] -> [1, 2] ?
+  // [0, 1, 2] -> [3, 4]
+  // [0, 1] -> [0, 1, 2]
+  // [0, 1] -> [3, 4, 5]
+  // [0, 1, 2] -> []
+  //
+  // controller failover in the middle
+  // old broker fails / gets out of ISR
+  // old broker not in ISR from beginning
+  // more topics, partitions
+
   @Test
   def testPartitionReassignmentResumesAfterReplicaComesOnline(): Unit = {
     servers = makeServers(2)
