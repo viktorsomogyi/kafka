@@ -193,6 +193,7 @@ class ControllerIntegrationTest extends ZooKeeperTestHarness {
   // old broker not in ISR from beginning
   // more topics, partitions
 
+  var serverStarted = false
   @Test
   def testPartitionReassignmentResumesAfterReplicaComesOnline(): Unit = {
     servers = makeServers(2)
@@ -201,6 +202,7 @@ class ControllerIntegrationTest extends ZooKeeperTestHarness {
     val tp = new TopicPartition("t", 0)
     val assignment = Map(tp.partition -> Seq(controllerId))
     val reassignment = Map(tp -> Seq(otherBrokerId))
+    println(s"Reassignment: $reassignment")
     TestUtils.createTopic(zkClient, tp.topic, partitionReplicaAssignment = assignment, servers = servers)
     servers(otherBrokerId).shutdown()
     servers(otherBrokerId).awaitShutdown()
@@ -208,6 +210,8 @@ class ControllerIntegrationTest extends ZooKeeperTestHarness {
     waitForPartitionState(tp, KafkaController.InitialControllerEpoch, controllerId, LeaderAndIsr.initialLeaderEpoch + 1,
       "failed to get expected partition state during partition reassignment with offline replica")
     servers(otherBrokerId).startup()
+    println("Triggered server startup")
+    serverStarted = true
     waitForPartitionState(tp, KafkaController.InitialControllerEpoch, otherBrokerId, LeaderAndIsr.initialLeaderEpoch + 4,
       "failed to get expected partition state after partition reassignment")
     TestUtils.waitUntilTrue(() => zkClient.getReplicaAssignmentForTopics(Set(tp.topic)) == reassignment,
@@ -339,6 +343,7 @@ class ControllerIntegrationTest extends ZooKeeperTestHarness {
                                     message: String): Unit = {
     TestUtils.waitUntilTrue(() => {
       val leaderIsrAndControllerEpochMap = zkClient.getTopicPartitionStates(Seq(tp))
+      println(tp)
       leaderIsrAndControllerEpochMap.contains(tp) &&
         isExpectedPartitionState(leaderIsrAndControllerEpochMap(tp), controllerEpoch, leader, leaderEpoch)
     }, message)
@@ -347,10 +352,17 @@ class ControllerIntegrationTest extends ZooKeeperTestHarness {
   private def isExpectedPartitionState(leaderIsrAndControllerEpoch: LeaderIsrAndControllerEpoch,
                                        controllerEpoch: Int,
                                        leader: Int,
-                                       leaderEpoch: Int) =
+                                       leaderEpoch: Int) = {
+    if (serverStarted){
+      println ("***************************************************************")
+      println(leaderIsrAndControllerEpoch.controllerEpoch == controllerEpoch)
+      println(s"${leaderIsrAndControllerEpoch.leaderAndIsr.leader} == $leader")
+      println(s"${leaderIsrAndControllerEpoch.leaderAndIsr.leaderEpoch} == $leaderEpoch")
+    }
     leaderIsrAndControllerEpoch.controllerEpoch == controllerEpoch &&
       leaderIsrAndControllerEpoch.leaderAndIsr.leader == leader &&
       leaderIsrAndControllerEpoch.leaderAndIsr.leaderEpoch == leaderEpoch
+  }
 
   private def makeServers(numConfigs: Int, autoLeaderRebalanceEnable: Boolean = false, uncleanLeaderElectionEnable: Boolean = false) = {
     val configs = TestUtils.createBrokerConfigs(numConfigs, zkConnect)
