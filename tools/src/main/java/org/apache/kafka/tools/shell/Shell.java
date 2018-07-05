@@ -37,11 +37,11 @@ import java.util.Properties;
 
 public class Shell {
 
-    private static final String SUBCOMMANDS = "subcommands";
+    static final String SUBCOMMANDS = "subcommands";
+    private static final Logger logger = LoggerFactory.getLogger(Shell.class);
     private Map<String, ShellCommand> subcommands = new HashMap<>();
     private AdminClient adminClient;
     private ArgumentParser parser;
-    private Logger logger = LoggerFactory.getLogger(Shell.class);
 
     public static void main(String[] args) {
         Shell shell = new Shell();
@@ -60,6 +60,7 @@ public class Shell {
         }
         adminClient = KafkaAdminClient.create(properties);
         parser = argParser();
+        createSubcommands();
     }
 
     void execute(String[] args) {
@@ -103,23 +104,25 @@ public class Shell {
 
     private Properties getFallbackConfig() {
         Properties configs = new Properties();
-        configs.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+        configs.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, ":9092");
         return configs;
     }
 
     private ArgumentParser argParser() {
         ArgumentParser parser = ArgumentParsers
-                .newFor("kafka-shell")
+                .newFor("kafka")
                 .addHelp(true)
                 .build();
-        Subparsers subparsers = parser.addSubparsers();
-        subparsers.dest(SUBCOMMANDS);
-        createSubcommands(subparsers);
         return parser;
     }
 
-    private void createSubcommands(Subparsers subparsers) {
+    private void createSubcommands() {
+        Subparsers subparsers = parser.addSubparsers();
+        subparsers.dest(SUBCOMMANDS);
         Topics topicsCommand = new Topics(adminClient, subparsers);
         subcommands.put(topicsCommand.name(), topicsCommand);
+
+        InteractiveShell interactiveShell = new InteractiveShell(adminClient, subparsers, parser, subcommands);
+        subcommands.put(interactiveShell.name(), interactiveShell);
     }
 }

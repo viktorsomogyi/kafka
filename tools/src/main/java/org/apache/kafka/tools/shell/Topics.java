@@ -19,7 +19,6 @@ package org.apache.kafka.tools.shell;
 
 import static net.sourceforge.argparse4j.impl.Arguments.store;
 
-import net.sourceforge.argparse4j.impl.type.FileArgumentType;
 import net.sourceforge.argparse4j.inf.Namespace;
 import net.sourceforge.argparse4j.inf.Subparser;
 import net.sourceforge.argparse4j.inf.Subparsers;
@@ -32,7 +31,6 @@ import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.common.TopicPartitionInfo;
 
-import java.io.File;
 import java.util.Collections;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
@@ -70,11 +68,6 @@ public class Topics extends ShellCommand {
                 .type(Integer.class)
                 .action(store())
                 .help("This is the number of partitions of the topic to create");
-//        create
-//                .addArgument("-c", "--configs")
-//                .type(new FileArgumentType()
-//                        .acceptSystemIn()
-//                        .verifyIsFile());
 
         Subparser delete = topicsOptions.addParser(DELETE);
         delete
@@ -123,7 +116,6 @@ public class Topics extends ShellCommand {
         String name = ns.getString("name");
         Integer partitions = ns.getInt("partitions");
         Short replicas = ns.getShort("replicas");
-//        File configs = ns.get("configs");
 
         NewTopic topic = new NewTopic(name, partitions, replicas);
 
@@ -149,7 +141,6 @@ public class Topics extends ShellCommand {
         String topicName = ns.getString("name");
         DescribeTopicsResult result;
         if (topicName == null) {
-            adminClient.listTopics();
             result = adminClient.describeTopics(adminClient.listTopics().names().get());
         } else {
             result = adminClient.describeTopics(Collections.singleton(topicName));
