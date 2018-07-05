@@ -122,6 +122,9 @@ public class Shell {
         Topics topicsCommand = new Topics(adminClient, subparsers);
         subcommands.put(topicsCommand.name(), topicsCommand);
 
+        Configs configsCommand = new Configs(adminClient, subparsers);
+        subcommands.put(configsCommand.name(), configsCommand );
+
         InteractiveShell interactiveShell = new InteractiveShell(adminClient, subparsers, parser, subcommands);
         subcommands.put(interactiveShell.name(), interactiveShell);
     }
