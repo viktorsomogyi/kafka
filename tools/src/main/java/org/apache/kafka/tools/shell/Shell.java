@@ -18,4 +18,8 @@
 package org.apache.kafka.tools.shell;
 
 public class Shell {
+
+    public static void main(String[] args) {
+
+    }
 }
