@@ -17,9 +17,109 @@
 
 package org.apache.kafka.tools.shell;
 
+import net.sourceforge.argparse4j.ArgumentParsers;
+import net.sourceforge.argparse4j.inf.ArgumentParser;
+import net.sourceforge.argparse4j.inf.ArgumentParserException;
+import net.sourceforge.argparse4j.inf.Namespace;
+import net.sourceforge.argparse4j.inf.Subparsers;
+import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.AdminClientConfig;
+import org.apache.kafka.clients.admin.KafkaAdminClient;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Properties;
+
 public class Shell {
 
-    public static void main(String[] args) {
+    private static final String SUBCOMMANDS = "subcommands";
+    private Map<String, ShellCommand> subcommands = new HashMap<>();
+    private AdminClient adminClient;
+    private ArgumentParser parser;
+    private Logger logger = LoggerFactory.getLogger(Shell.class);
 
+    public static void main(String[] args) {
+        Shell shell = new Shell();
+        shell.execute(args);
+    }
+
+    Shell() {
+        Properties properties = getOverrideConfig();
+        if (properties == null) {
+            logger.debug("No override config found in KAFKA_SHELL_CONFIG");
+            properties = getDefaultConfig();
+        }
+        if (properties == null) {
+            logger.debug("No default config found in /etc/kafka-shell.properties");
+            properties = getFallbackConfig();
+        }
+        adminClient = KafkaAdminClient.create(properties);
+        parser = argParser();
+    }
+
+    void execute(String[] args) {
+        try {
+            Namespace ns = parser.parseArgs(args);
+            ShellCommand cmd = subcommands.get(ns.getString(SUBCOMMANDS));
+            cmd.execute(ns);
+        } catch (ArgumentParserException e) {
+            parser.handleError(e);
+        }
+    }
+
+    /**
+     * Reads the default config from the specified path. If there is
+     * no such file, returns `null`.
+     * @return a populated {@link Properties} object if it found the config
+     * file, otherwise `null`.
+     */
+    private Properties getConfig(String pathname) {
+        if (pathname == null || pathname.isEmpty()) return null;
+
+        File propsFile = new File(pathname);
+        if (!propsFile.exists()) return null;
+        Properties props = new Properties();
+        try {
+            props.load(new FileInputStream(propsFile));
+        } catch (IOException e) {
+            e.printStackTrace();
+            return null;
+        }
+        return props;
+    }
+
+    private Properties getOverrideConfig() {
+        return getConfig(System.getProperty("KAFKA_SHELL_CONFIG"));
+    }
+
+    private Properties getDefaultConfig() {
+        return getConfig("/etc/kafka-shell.properties");
+    }
+
+    private Properties getFallbackConfig() {
+        Properties configs = new Properties();
+        configs.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+        return configs;
+    }
+
+    private ArgumentParser argParser() {
+        ArgumentParser parser = ArgumentParsers
+                .newFor("kafka-shell")
+                .addHelp(true)
+                .build();
+        Subparsers subparsers = parser.addSubparsers();
+        subparsers.dest(SUBCOMMANDS);
+        createSubcommands(subparsers);
+        return parser;
+    }
+
+    private void createSubcommands(Subparsers subparsers) {
+        Topics topicsCommand = new Topics(adminClient, subparsers);
+        subcommands.put(topicsCommand.name(), topicsCommand);
     }
 }
