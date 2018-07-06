@@ -41,7 +41,9 @@ public class InteractiveShell extends ShellCommand {
                             ArgumentParser parser,
                             Map<String, ShellCommand> subcommands) {
         super(adminClient, subparsers);
-        subparsers.addParser(name());
+        if (subparsers != null) {
+            subparsers.addParser(name());
+        }
         this.parser = parser;
         this.subcommands = subcommands;
     }

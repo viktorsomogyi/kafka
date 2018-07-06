@@ -65,9 +65,14 @@ public class Shell {
 
     void execute(String[] args) {
         try {
-            Namespace ns = parser.parseArgs(args);
-            ShellCommand cmd = subcommands.get(ns.getString(SUBCOMMANDS));
-            cmd.execute(ns);
+            if (args == null || args.length == 0) {
+                InteractiveShell interactiveShell = new InteractiveShell(adminClient, null, parser, subcommands);
+                interactiveShell.execute((Namespace) null);
+            } else {
+                Namespace ns = parser.parseArgs(args);
+                ShellCommand cmd = subcommands.get(ns.getString(SUBCOMMANDS));
+                cmd.execute(ns);
+            }
         } catch (ArgumentParserException e) {
             parser.handleError(e);
         }
