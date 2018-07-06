@@ -49,7 +49,11 @@ public class Shell {
     }
 
     Shell() {
-        Properties properties = getOverrideConfig();
+        Properties properties = getOverrideProperties();
+        if (properties == null) {
+            logger.debug("No override properties found in KAFKA_SHELL_PROPERTIES");
+            properties = getOverrideConfig();
+        }
         if (properties == null) {
             logger.debug("No override config found in KAFKA_SHELL_CONFIG");
             properties = getDefaultConfig();
@@ -95,6 +99,17 @@ public class Shell {
         } catch (IOException e) {
             e.printStackTrace();
             return null;
+        }
+        return props;
+    }
+
+    private Properties getOverrideProperties() {
+        String properties = System.getProperty("KAFKA_SHELL_PROPERTIES");
+        if (properties == null) return null;
+        Properties props = new Properties();
+        for (String prop : properties.split(",")) {
+            String[] propKeyValue = prop.split("=");
+            props.put(propKeyValue[0], propKeyValue[1]);
         }
         return props;
     }
