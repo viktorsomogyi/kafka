@@ -128,6 +128,9 @@ public class Shell {
         Logs logsCommand = new Logs(adminClient, subparsers);
         subcommands.put(logsCommand.name(), logsCommand);
 
+        ClusterInfo clusterInfoCommand = new ClusterInfo(adminClient, subparsers);
+        subcommands.put(clusterInfoCommand.name(), clusterInfoCommand);
+
         InteractiveShell interactiveShell = new InteractiveShell(adminClient, subparsers, parser, subcommands);
         subcommands.put(interactiveShell.name(), interactiveShell);
     }
