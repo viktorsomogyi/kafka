@@ -125,6 +125,9 @@ public class Shell {
         Configs configsCommand = new Configs(adminClient, subparsers);
         subcommands.put(configsCommand.name(), configsCommand );
 
+        Logs logsCommand = new Logs(adminClient, subparsers);
+        subcommands.put(logsCommand.name(), logsCommand);
+
         InteractiveShell interactiveShell = new InteractiveShell(adminClient, subparsers, parser, subcommands);
         subcommands.put(interactiveShell.name(), interactiveShell);
     }
