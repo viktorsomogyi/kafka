@@ -131,6 +131,9 @@ public class Shell {
         ClusterInfo clusterInfoCommand = new ClusterInfo(adminClient, subparsers);
         subcommands.put(clusterInfoCommand.name(), clusterInfoCommand);
 
+        ConsumerGroups consumerGroups = new ConsumerGroups(adminClient, subparsers);
+        subcommands.put(consumerGroups.name(), consumerGroups);
+
         InteractiveShell interactiveShell = new InteractiveShell(adminClient, subparsers, parser, subcommands);
         subcommands.put(interactiveShell.name(), interactiveShell);
     }

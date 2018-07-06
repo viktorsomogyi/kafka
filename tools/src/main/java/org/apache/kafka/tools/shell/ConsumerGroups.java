@@ -20,8 +20,12 @@ import org.apache.kafka.clients.admin.ListConsumerGroupOffsetsOptions;
 import org.apache.kafka.clients.admin.ListConsumerGroupOffsetsResult;
 import org.apache.kafka.clients.admin.ListConsumerGroupsOptions;
 import org.apache.kafka.clients.admin.ListConsumerGroupsResult;
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
+import org.apache.kafka.common.TopicPartition;
 
+import java.util.Collection;
 import java.util.Collections;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
 
@@ -34,10 +38,10 @@ public class ConsumerGroups extends ShellCommand{
 
     ConsumerGroups(AdminClient adminClient, Subparsers subparsers) {
         super(adminClient, subparsers);
-        Subparser groupOptions = subparsers.addParser(name());
-        groupOptions.description("Provides consumer groups administration commands");
+        Subparser groups = subparsers.addParser(name());
+        groups.description("Provides consumer groups administration commands");
 
-        Subparsers groupOptions = groupOptions.addSubparsers();
+        Subparsers groupOptions = groups.addSubparsers();
         groupOptions.dest(CONSUMER_GROUP_OPTIONS);
 
         Subparser describe = groupOptions.addParser(DESCRIBE);
@@ -54,7 +58,7 @@ public class ConsumerGroups extends ShellCommand{
                 .type(String.class)
                 .required(true)
                 .action(store())
-                .help("This is the name of the group to delete");;
+                .help("This is the name of the group to delete");
 
         groupOptions.addParser(LIST);
     }
@@ -78,9 +82,9 @@ public class ConsumerGroups extends ShellCommand{
         }
     }
 
-        private void list() throws ExecutionException, InterruptedException {
+    private void list() throws ExecutionException, InterruptedException {
         ListConsumerGroupsResult result = adminClient.listConsumerGroups();
-        //needs to unpack result
+        result.all().get().forEach(cgl -> System.out.println(cgl.groupId()));
     }
 
     private void delete(Namespace ns) {
@@ -94,18 +98,48 @@ public class ConsumerGroups extends ShellCommand{
     }
 
     private void describe(Namespace ns) throws ExecutionException, InterruptedException {
-        String group = ns.getString("group");
-        DescribeConsumerGroupsResult result;
-        if (group == null) {
-            adminClient.listConsumerGroups();
-            result = adminClient.describeConsumerGroups(); //missing access
-        } else {
-            result = adminClient.describeConsumerGroups(Collections.singleton(group));
+            String group = ns.getString("group");
+
+            DescribeConsumerGroupsResult groupResult;
+
+            ListConsumerGroupOffsetsResult offsetsResult;
+            offsetsResult = adminClient.listConsumerGroupOffsets(group);
+            groupResult = adminClient.describeConsumerGroups(Collections.singleton(group));
+
+            groupResult.all().get().forEach((groupName, consumerGroupDescription) -> {
+            String consumerType;
+
+            if (consumerGroupDescription.isSimpleConsumerGroup() == false) {
+                consumerType = "NEW";
+            } else {
+                consumerType = "SIMPLE";
+            };
+
+            System.out.format("\tGROUP: %s \n", group);
+            System.out.format("\tCONSUMER-TYPE: %s \n", consumerType);
+            System.out.format("\tCOORDINATOR-HOST: %s \n \n ", consumerGroupDescription.coordinator());
+
+            //System.out.format("\tMEMBERS: %s \n", consumerGroupDescription.members());
+
+            });
+
+            try {
+                Map<TopicPartition, OffsetAndMetadata> offset = offsetsResult.partitionsToOffsetAndMetadata().get();
+
+                offset.forEach((topicPartition, offsetAndMetadata) -> {
+                    System.out.format("\tTOPIC-PARTITION: %s-%s \t CURRENT-OFFSET: %s \n", topicPartition.topic(), topicPartition.partition(), offsetAndMetadata.offset());}
+
+                );
+
+
+
+            } catch (InterruptedException | ExecutionException e) {
+                e.printStackTrace();
+            }
+
         }
-
-        //need to unpack results
-
+    @Override
+    public String name() {
+        return "groups";
     }
-
-
 };
