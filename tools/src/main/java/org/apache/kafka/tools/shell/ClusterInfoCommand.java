@@ -25,9 +25,9 @@ import org.apache.kafka.common.Node;
 
 import java.util.concurrent.ExecutionException;
 
-public class ClusterInfo extends ShellCommand {
+public class ClusterInfoCommand extends ShellCommand {
 
-    public ClusterInfo(AdminClient adminClient, Subparsers subparsers) {
+    public ClusterInfoCommand(AdminClient adminClient, Subparsers subparsers) {
         super(adminClient, subparsers);
         subparsers.addParser(name());
     }

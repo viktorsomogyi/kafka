@@ -139,19 +139,19 @@ public class Shell {
     private void createSubcommands() {
         Subparsers subparsers = parser.addSubparsers();
         subparsers.dest(SUBCOMMANDS);
-        Topics topicsCommand = new Topics(adminClient, subparsers);
+        TopicsCommand topicsCommand = new TopicsCommand(adminClient, subparsers);
         subcommands.put(topicsCommand.name(), topicsCommand);
 
-        Configs configsCommand = new Configs(adminClient, subparsers);
+        ConfigsCommand configsCommand = new ConfigsCommand(adminClient, subparsers);
         subcommands.put(configsCommand.name(), configsCommand );
 
-        Logs logsCommand = new Logs(adminClient, subparsers);
+        LogsCommand logsCommand = new LogsCommand(adminClient, subparsers);
         subcommands.put(logsCommand.name(), logsCommand);
 
-        ClusterInfo clusterInfoCommand = new ClusterInfo(adminClient, subparsers);
+        ClusterInfoCommand clusterInfoCommand = new ClusterInfoCommand(adminClient, subparsers);
         subcommands.put(clusterInfoCommand.name(), clusterInfoCommand);
 
-        ConsumerGroups consumerGroups = new ConsumerGroups(adminClient, subparsers);
+        ConsumerGroupsCommand consumerGroups = new ConsumerGroupsCommand(adminClient, subparsers);
         subcommands.put(consumerGroups.name(), consumerGroups);
     }
 }

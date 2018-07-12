@@ -35,7 +35,7 @@ import java.util.Collections;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
-public class Topics extends ShellCommand {
+public class TopicsCommand extends ShellCommand {
 
     private static final String TOPICS_OPTIONS = "topicsOptions";
     private static final String CREATE = "create";
@@ -43,7 +43,7 @@ public class Topics extends ShellCommand {
     private static final String LIST = "list";
     private static final String DESCRIBE = "describe";
 
-    Topics(AdminClient adminClient, Subparsers subparsers) {
+    TopicsCommand(AdminClient adminClient, Subparsers subparsers) {
         super(adminClient, subparsers);
         Subparser topics = subparsers.addParser(name());
         topics.description("Provides topic administration commands");

@@ -11,11 +11,11 @@ import java.util.concurrent.ExecutionException;
 import static net.sourceforge.argparse4j.impl.Arguments.store;
 import static net.sourceforge.argparse4j.impl.Arguments.storeTrue;
 
-public class Configs extends ShellCommand {
+public class ConfigsCommand extends ShellCommand {
 
     private static final String TOPICS_OPTIONS = "topicsOptions";
 
-    public Configs(AdminClient adminClient, Subparsers subparsers) {
+    public ConfigsCommand(AdminClient adminClient, Subparsers subparsers) {
         super(adminClient, subparsers);
 
         Subparser configs = subparsers.addParser("configs");

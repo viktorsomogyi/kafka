@@ -29,14 +29,14 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
 
-public class ConsumerGroups extends ShellCommand{
+public class ConsumerGroupsCommand extends ShellCommand{
 
     private static final String CONSUMER_GROUP_OPTIONS = "groupsOptions";
     private static final String DELETE = "delete";
     private static final String LIST = "list";
     private static final String DESCRIBE = "describe";
 
-    ConsumerGroups(AdminClient adminClient, Subparsers subparsers) {
+    ConsumerGroupsCommand(AdminClient adminClient, Subparsers subparsers) {
         super(adminClient, subparsers);
         Subparser groups = subparsers.addParser(name());
         groups.description("Provides consumer groups administration commands");

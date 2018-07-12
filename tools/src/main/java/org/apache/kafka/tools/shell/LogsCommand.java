@@ -32,12 +32,12 @@ import java.util.concurrent.ExecutionException;
 
 import static net.sourceforge.argparse4j.impl.Arguments.store;
 
-public class Logs extends ShellCommand {
+public class LogsCommand extends ShellCommand {
 
     private static final String LOGS_OPTIONS = "logs";
     private static final String DESCRIBE = "describe";
 
-    public Logs(AdminClient adminClient, Subparsers subparsers) {
+    public LogsCommand(AdminClient adminClient, Subparsers subparsers) {
         super(adminClient, subparsers);
         Subparser logs = subparsers.addParser(name());
         logs.description("Provides topic administration commands");
