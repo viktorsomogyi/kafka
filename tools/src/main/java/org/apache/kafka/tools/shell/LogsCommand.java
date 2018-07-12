@@ -37,12 +37,16 @@ public class LogsCommand extends ShellCommand {
     private static final String LOGS_OPTIONS = "logs";
     private static final String DESCRIBE = "describe";
 
-    public LogsCommand(AdminClient adminClient, Subparsers subparsers) {
-        super(adminClient, subparsers);
-        Subparser logs = subparsers.addParser(name());
-        logs.description("Provides topic administration commands");
+    LogsCommand(AdminClient adminClient) {
+        super(adminClient);
 
-        Subparsers logsOptions = logs.addSubparsers();
+    }
+
+    @Override
+    void init(Subparser subparser) {
+        subparser.description("Provides topic administration commands");
+
+        Subparsers logsOptions = subparser.addSubparsers();
         logsOptions.dest(LOGS_OPTIONS);
 
         Subparser describe = logsOptions.addParser(DESCRIBE);
@@ -59,7 +63,6 @@ public class LogsCommand extends ShellCommand {
                 .addArgument("-p", "--partition")
                 .type(Integer.class)
                 .action(store());
-
     }
 
     @Override

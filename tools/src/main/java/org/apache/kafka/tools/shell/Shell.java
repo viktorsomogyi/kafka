@@ -31,15 +31,17 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 
 public class Shell {
 
-    static final String SUBCOMMANDS = "subcommands";
+    private static final String COMMAND = "command";
     private static final Logger logger = LoggerFactory.getLogger(Shell.class);
-    private Map<String, ShellCommand> subcommands = new HashMap<>();
+    private Map<String, ShellCommand> commands = new HashMap<>();
     private AdminClient adminClient;
     private ArgumentParser parser;
 
@@ -48,7 +50,7 @@ public class Shell {
         shell.execute(args);
     }
 
-    Shell() {
+    private Shell() {
         Properties properties = getOverrideProperties();
         if (properties == null) {
             logger.debug("No override properties found in KAFKA_SHELL_PROPERTIES");
@@ -64,17 +66,17 @@ public class Shell {
         }
         adminClient = KafkaAdminClient.create(properties);
         parser = argParser();
-        createSubcommands();
+        createCommands();
     }
 
-    void execute(String[] args) {
+    private void execute(String[] args) {
         try {
             if (args == null || args.length == 0) {
-                InteractiveShell interactiveShell = new InteractiveShell(adminClient, null, parser, subcommands);
-                interactiveShell.execute((Namespace) null);
+                InteractiveShell interactiveShell = new InteractiveShell(parser, commands);
+                interactiveShell.run();
             } else {
                 Namespace ns = parser.parseArgs(args);
-                ShellCommand cmd = subcommands.get(ns.getString(SUBCOMMANDS));
+                ShellCommand cmd = commands.get(ns.getString(COMMAND));
                 cmd.execute(ns);
             }
         } catch (ArgumentParserException e) {
@@ -129,29 +131,29 @@ public class Shell {
     }
 
     private ArgumentParser argParser() {
-        ArgumentParser parser = ArgumentParsers
+        return ArgumentParsers
                 .newFor("kafka")
                 .addHelp(true)
                 .build();
-        return parser;
     }
 
-    private void createSubcommands() {
+    private void createCommands() {
         Subparsers subparsers = parser.addSubparsers();
-        subparsers.dest(SUBCOMMANDS);
-        TopicsCommand topicsCommand = new TopicsCommand(adminClient, subparsers);
-        subcommands.put(topicsCommand.name(), topicsCommand);
+        subparsers.dest(COMMAND);
 
-        ConfigsCommand configsCommand = new ConfigsCommand(adminClient, subparsers);
-        subcommands.put(configsCommand.name(), configsCommand );
+        TopicsCommand topicsCommand = new TopicsCommand(adminClient);
+        topicsCommand.register(commands, subparsers);
 
-        LogsCommand logsCommand = new LogsCommand(adminClient, subparsers);
-        subcommands.put(logsCommand.name(), logsCommand);
+        ConfigsCommand configsCommand = new ConfigsCommand(adminClient);
+        configsCommand.register(commands, subparsers);
 
-        ClusterInfoCommand clusterInfoCommand = new ClusterInfoCommand(adminClient, subparsers);
-        subcommands.put(clusterInfoCommand.name(), clusterInfoCommand);
+        LogsCommand logsCommand = new LogsCommand(adminClient);
+        logsCommand.register(commands, subparsers);
 
-        ConsumerGroupsCommand consumerGroups = new ConsumerGroupsCommand(adminClient, subparsers);
-        subcommands.put(consumerGroups.name(), consumerGroups);
+        ClusterInfoCommand clusterInfoCommand = new ClusterInfoCommand(adminClient);
+        clusterInfoCommand.register(commands, subparsers);
+
+        ConsumerGroupsCommand consumerGroups = new ConsumerGroupsCommand(adminClient);
+        consumerGroups.register(commands, subparsers);
     }
 }

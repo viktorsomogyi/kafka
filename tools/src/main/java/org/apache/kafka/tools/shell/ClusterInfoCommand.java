@@ -18,7 +18,7 @@
 package org.apache.kafka.tools.shell;
 
 import net.sourceforge.argparse4j.inf.Namespace;
-import net.sourceforge.argparse4j.inf.Subparsers;
+import net.sourceforge.argparse4j.inf.Subparser;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.DescribeClusterResult;
 import org.apache.kafka.common.Node;
@@ -27,9 +27,13 @@ import java.util.concurrent.ExecutionException;
 
 public class ClusterInfoCommand extends ShellCommand {
 
-    public ClusterInfoCommand(AdminClient adminClient, Subparsers subparsers) {
-        super(adminClient, subparsers);
-        subparsers.addParser(name());
+    ClusterInfoCommand(AdminClient adminClient) {
+        super(adminClient);
+    }
+
+    @Override
+    void init(Subparser subparser) {
+
     }
 
     @Override

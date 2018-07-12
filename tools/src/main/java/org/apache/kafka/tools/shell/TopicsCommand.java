@@ -43,12 +43,15 @@ public class TopicsCommand extends ShellCommand {
     private static final String LIST = "list";
     private static final String DESCRIBE = "describe";
 
-    TopicsCommand(AdminClient adminClient, Subparsers subparsers) {
-        super(adminClient, subparsers);
-        Subparser topics = subparsers.addParser(name());
-        topics.description("Provides topic administration commands");
+    TopicsCommand(AdminClient adminClient) {
+        super(adminClient);
+    }
 
-        Subparsers topicsOptions = topics.addSubparsers();
+    @Override
+    void init(Subparser subparser) {
+        subparser.description("Provides topic administration commands");
+
+        Subparsers topicsOptions = subparser.addSubparsers();
         topicsOptions.dest(TOPICS_OPTIONS);
 
         Subparser create = topicsOptions.addParser(CREATE);

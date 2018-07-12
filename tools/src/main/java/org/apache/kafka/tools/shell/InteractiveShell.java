@@ -20,8 +20,6 @@ package org.apache.kafka.tools.shell;
 import net.sourceforge.argparse4j.inf.ArgumentParser;
 import net.sourceforge.argparse4j.inf.ArgumentParserException;
 import net.sourceforge.argparse4j.inf.Namespace;
-import net.sourceforge.argparse4j.inf.Subparsers;
-import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.common.utils.Exit;
 
 import java.io.BufferedReader;
@@ -29,27 +27,20 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.Map;
 
-import static org.apache.kafka.tools.shell.Shell.SUBCOMMANDS;
 
-public class InteractiveShell extends ShellCommand {
+public class InteractiveShell {
 
+    private static final String COMMAND = "command";
     private ArgumentParser parser;
     private Map<String, ShellCommand> subcommands;
 
-    public InteractiveShell(AdminClient adminClient,
-                            Subparsers subparsers,
-                            ArgumentParser parser,
+    InteractiveShell(ArgumentParser parser,
                             Map<String, ShellCommand> subcommands) {
-        super(adminClient, subparsers);
-        if (subparsers != null) {
-            subparsers.addParser(name());
-        }
         this.parser = parser;
         this.subcommands = subcommands;
     }
 
-    @Override
-    public void execute(Namespace namespace) {
+    public void run() {
         System.out.println("Type 'q', 'quit' or 'exit' to leave the Kafka shell");
         try {
             shell: while (true) {
@@ -68,13 +59,11 @@ public class InteractiveShell extends ShellCommand {
         }
     }
 
-    void execute(String[] args) {
+    private void execute(String[] args) {
         try {
             Namespace ns = parser.parseArgs(args);
-            String command = ns.getString(SUBCOMMANDS);
-            if (name().equals(command)) {
-                System.out.println("ha ha funny");
-            } else if ("q".equals(command) || "quit".equals(command)) {
+            String command = ns.getString(COMMAND);
+            if ("q".equals(command) || "quit".equals(command)) {
                 Exit.exit(0);
             } else {
                 ShellCommand cmd = subcommands.get(command);
@@ -83,10 +72,5 @@ public class InteractiveShell extends ShellCommand {
         } catch (ArgumentParserException e) {
             parser.handleError(e);
         }
-    }
-
-    @Override
-    public String name() {
-        return "shell";
     }
 }
