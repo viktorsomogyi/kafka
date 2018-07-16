@@ -21,6 +21,7 @@ import net.sourceforge.argparse4j.ArgumentParsers;
 import net.sourceforge.argparse4j.inf.ArgumentParser;
 import net.sourceforge.argparse4j.inf.ArgumentParserException;
 import net.sourceforge.argparse4j.inf.Namespace;
+import net.sourceforge.argparse4j.inf.Subparser;
 import net.sourceforge.argparse4j.inf.Subparsers;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
@@ -31,8 +32,6 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
@@ -137,23 +136,20 @@ public class Shell {
                 .build();
     }
 
+    private void register(ShellCommand cmd, Subparsers subparsers) {
+        Subparser subparser = subparsers.addParser(cmd.name());
+        cmd.init(subparser);
+        commands.put(cmd.name(), cmd);
+    }
+
     private void createCommands() {
         Subparsers subparsers = parser.addSubparsers();
         subparsers.dest(COMMAND);
 
-        TopicsCommand topicsCommand = new TopicsCommand(adminClient);
-        topicsCommand.register(commands, subparsers);
-
-        ConfigsCommand configsCommand = new ConfigsCommand(adminClient);
-        configsCommand.register(commands, subparsers);
-
-        LogsCommand logsCommand = new LogsCommand(adminClient);
-        logsCommand.register(commands, subparsers);
-
-        ClusterInfoCommand clusterInfoCommand = new ClusterInfoCommand(adminClient);
-        clusterInfoCommand.register(commands, subparsers);
-
-        ConsumerGroupsCommand consumerGroups = new ConsumerGroupsCommand(adminClient);
-        consumerGroups.register(commands, subparsers);
+        register(new TopicsCommand(adminClient), subparsers);
+        register(new ConfigsCommand(adminClient), subparsers);
+        register(new LogsCommand(adminClient), subparsers);
+        register(new ClusterInfoCommand(adminClient), subparsers);
+        register(new ConsumerGroupsCommand(adminClient), subparsers);
     }
 }

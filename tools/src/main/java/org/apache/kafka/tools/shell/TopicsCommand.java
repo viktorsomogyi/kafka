@@ -30,6 +30,8 @@ import org.apache.kafka.clients.admin.ListTopicsResult;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.common.TopicPartitionInfo;
+import org.apache.kafka.common.config.Config;
+import org.apache.kafka.common.config.TopicConfig;
 
 import java.util.Collections;
 import java.util.concurrent.ExecutionException;
@@ -65,11 +67,13 @@ public class TopicsCommand extends ShellCommand {
                 .addArgument("-r", "--replicas")
                 .type(Short.class)
                 .action(store())
+                .required(true)
                 .help("This is the replication factor of the partitions of the topic to create");
         create
                 .addArgument("-p", "--partitions")
                 .type(Integer.class)
                 .action(store())
+                .required(true)
                 .help("This is the number of partitions of the topic to create");
 
         Subparser delete = topicsOptions.addParser(DELETE);

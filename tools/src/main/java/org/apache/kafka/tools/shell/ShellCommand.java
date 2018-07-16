@@ -19,10 +19,7 @@ package org.apache.kafka.tools.shell;
 
 import net.sourceforge.argparse4j.inf.Namespace;
 import net.sourceforge.argparse4j.inf.Subparser;
-import net.sourceforge.argparse4j.inf.Subparsers;
 import org.apache.kafka.clients.admin.AdminClient;
-
-import java.util.Map;
 
 abstract class ShellCommand {
 
@@ -30,12 +27,6 @@ abstract class ShellCommand {
 
     ShellCommand(AdminClient adminClient) {
         this.adminClient = adminClient;
-    }
-
-    final void register(Map<String, ShellCommand> subcommands, Subparsers subparsers) {
-        Subparser subparser = subparsers.addParser(name());
-        subcommands.put(name(), this);
-        init(subparser);
     }
 
     abstract void init(Subparser subparser);

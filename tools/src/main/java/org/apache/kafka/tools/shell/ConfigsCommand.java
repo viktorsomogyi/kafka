@@ -24,166 +24,156 @@ import org.apache.kafka.common.config.ConfigResource;
 
 import java.util.*;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 
 import static net.sourceforge.argparse4j.impl.Arguments.store;
+import static net.sourceforge.argparse4j.impl.Arguments.storeConst;
 import static net.sourceforge.argparse4j.impl.Arguments.storeTrue;
 
 public class ConfigsCommand extends ShellCommand {
 
-    private static final String TOPICS_OPTIONS = "topicsOptions";
+    private static final String CONFIGS_OPTIONS = "configsOptions";
+    private static final String UPDATE = "update";
+    private static final String DELETE = "delete";
+    private static final String DESCRIBE = "describe";
+    private static final String DELETE_ARG = "DELETE";
+    private static final String UPDATE_ARG = "UPDATE";
 
-    public ConfigsCommand(AdminClient adminClient) {
+    ConfigsCommand(AdminClient adminClient) {
         super(adminClient);
     }
 
     @Override
     void init(Subparser subparser) {
-        subparser.addArgument("-a", "--add")
+        Subparsers topicsOptions = subparser.addSubparsers();
+        topicsOptions.dest(CONFIGS_OPTIONS);
+
+        Subparser describe = topicsOptions.addParser(DESCRIBE);
+        addBrokerTopicArgumentGroup(describe);
+
+        Subparser delete = topicsOptions.addParser(DELETE);
+        addBrokerTopicArgumentGroup(delete);
+        delete.addArgument(DELETE_ARG)
                 .action(store())
-                .required(false)
+                .required(true)
                 .type(String.class);
 
-        subparser.addArgument("--delete")
+        Subparser alter = topicsOptions.addParser(UPDATE);
+        addBrokerTopicArgumentGroup(alter);
+        alter.addArgument(UPDATE_ARG)
                 .action(store())
-                .required(false)
+                .required(true)
                 .type(String.class);
+    }
 
-        subparser.addArgument("--describe")
-                .action(storeTrue())
-                .required(false);
-
-        subparser.addArgument("--broker")
+    private void addBrokerTopicArgumentGroup(Subparser subparser) {
+        MutuallyExclusiveGroup brokerTopicGroup = subparser.addMutuallyExclusiveGroup();
+        brokerTopicGroup.required(true);
+        brokerTopicGroup.addArgument("-b", "--brokers")
+                .help("A string separated list of broker IDs, like '123,124,125'. An empty argument" +
+                        "is the same as specifying all brokers.")
                 .action(store())
-                .required(false)
                 .type(Integer.class);
-
-        subparser.addArgument("--topic")
+        brokerTopicGroup.addArgument("-t", "--topics")
+                .help("A string separated list of topics, like 'topic1,topic2,topic3'. An empty argument" +
+                        "is the same as specifying all topics.")
                 .action(store())
-                .required(false)
                 .type(String.class);
     }
 
     @Override
     public void execute(Namespace namespace) {
-        String add = namespace.getString("add");
-        String delete = namespace.getString("delete");
-        Boolean describe = namespace.getBoolean("describe");
-        Integer broker = namespace.getInt("broker");
-        String topic = namespace.getString("topic");
-
-
-        if (add != null) {
-            DescribeConfigsResult configresults = null;
-
-            if (broker != null) {
-                ConfigResource resource = new ConfigResource(ConfigResource.Type.BROKER, broker.toString());
-                configresults = adminClient.describeConfigs(Collections.singleton(resource));
-            } else if (topic != null) {
-                ConfigResource topicresource = new ConfigResource(ConfigResource.Type.TOPIC, topic);
-                configresults = adminClient.describeConfigs(Collections.singleton(topicresource));
+        try {
+            switch (namespace.getString(CONFIGS_OPTIONS)) {
+                case UPDATE:
+                    update(namespace);
+                    break;
+                case DELETE:
+                    delete(namespace);
+                    break;
+                case DESCRIBE:
+                    describe(namespace);
+                    break;
             }
-            List<ConfigEntry> configlist = new ArrayList<>();
-            try {
-                configresults.all().get().forEach((cr, c) -> configlist.addAll(c.entries()));
-            } catch (InterruptedException | ExecutionException e) {
-                e.printStackTrace();
-            }
-
-            for (String prop : add.split(",")) {
-                String[] pieces = prop.split("=");
-                if (pieces.length != 2)
-                    throw new IllegalArgumentException("Invalid property: " + prop);
-                configlist.add(new ConfigEntry(pieces[0], pieces[1]));
-            }
-            if (broker != null) {
-                ConfigResource resource = new ConfigResource(ConfigResource.Type.BROKER, broker.toString());
-                Map<ConfigResource, Config> name = new HashMap<>();
-                name.put(resource, new Config(configlist));
-                AlterConfigsResult result = adminClient.alterConfigs(name);
-                try {
-                    result.all().get();
-                } catch (InterruptedException | ExecutionException e) {
-                    e.printStackTrace();
-                }
-            }
-            if (topic != null) {
-
-                ConfigResource resource = new ConfigResource(ConfigResource.Type.TOPIC, topic);
-                Map<ConfigResource, Config> name = new HashMap<>();
-                name.put(resource, new Config(configlist));
-                AlterConfigsResult result = adminClient.alterConfigs(name);
-                try {
-                    result.all().get();
-                } catch (InterruptedException | ExecutionException e) {
-                    e.printStackTrace();
-                }
-            }
-        } else if (describe) {
-            DescribeConfigsResult configresults = null;
-            if (broker != null) {
-                ConfigResource resource = new ConfigResource(ConfigResource.Type.BROKER, broker.toString());
-                configresults = adminClient.describeConfigs(Collections.singleton(resource));
-            } else if (topic != null) {
-                ConfigResource topicresource = new ConfigResource(ConfigResource.Type.TOPIC, topic);
-                configresults = adminClient.describeConfigs(Collections.singleton(topicresource));
-            }
-            if (configresults != null) {
-                try {
-                    configresults.all().get().forEach((cr, c) -> {
-                        System.out.format("%s %s\n", cr.type(), cr.name());
-                        c.entries().forEach(configEntry -> System.out.format("\t%s = %s\n", configEntry.name(), configEntry.value()));
-                    });
-
-                } catch (InterruptedException | ExecutionException e) {
-                    e.printStackTrace();
-                }
-            }
-        } else if (delete != null) {
-            DescribeConfigsResult configresults = null;
-
-            if (broker != null) {
-                ConfigResource resource = new ConfigResource(ConfigResource.Type.BROKER, broker.toString());
-                configresults = adminClient.describeConfigs(Collections.singleton(resource));
-            } else if (topic != null) {
-                ConfigResource topicresource = new ConfigResource(ConfigResource.Type.TOPIC, topic);
-                configresults = adminClient.describeConfigs(Collections.singleton(topicresource));
-            }
-            try {
-                if (configresults != null) {
-                    List<ConfigEntry> configlist = new ArrayList();
-                    Set<String> dellist = new HashSet<>(Arrays.asList(delete.split(",")));
-                    configresults.all().get().forEach((cr, c) -> {
-
-                        c.entries().forEach(configEntry -> {
-                            if (!dellist.contains(configEntry.name())) {
-                                configlist.add(configEntry);
-                            }
-                        });
-                    });
-
-                    if (broker != null) {
-                        ConfigResource resource = new ConfigResource(ConfigResource.Type.BROKER, broker.toString());
-                        Map<ConfigResource, Config> name = new HashMap<>();
-                        name.put(resource, new Config(configlist));
-                        AlterConfigsResult result = adminClient.alterConfigs(name);
-                        result.all().get();
-                    }
-                    if (topic != null) {
-                        ConfigResource resource = new ConfigResource(ConfigResource.Type.TOPIC, topic);
-                        Map<ConfigResource, Config> name = new HashMap<>();
-                        name.put(resource, new Config(configlist));
-                        AlterConfigsResult result = adminClient.alterConfigs(name);
-                        result.all().get();
-                    }
-                }
-
-
-            } catch (InterruptedException | ExecutionException e) {
-                e.printStackTrace();
-            }
-
-
+        } catch (ExecutionException | InterruptedException e) {
+            e.printStackTrace();
         }
+    }
+
+    private void describe(Namespace namespace) throws ExecutionException, InterruptedException {
+        List<ConfigResource> resources = getResourcesFromParameters(namespace);
+        DescribeConfigsResult configResults = adminClient.describeConfigs(resources);
+        if (configResults != null) {
+            configResults.all().get().forEach((cr, c) -> {
+                System.out.format("%s %s\n", cr.type(), cr.name());
+                c.entries().forEach(configEntry -> System.out.format("\t%s = %s\n", configEntry.name(), configEntry.value()));
+            });
+        }
+    }
+
+    private void delete(Namespace namespace) throws ExecutionException, InterruptedException {
+        List<ConfigResource> resources = getResourcesFromParameters(namespace);
+        DescribeConfigsResult configResults = adminClient.describeConfigs(resources);
+        Set<String> configsToDelete = new HashSet<>(Arrays.asList(namespace.getString(DELETE_ARG).split(",")));
+
+        Map<ConfigResource, Config> resourceMap = new HashMap<>();
+        configResults.all().get().forEach((cr, c) -> {
+            Set<ConfigEntry> newConfigSet = new HashSet<>(c.entries());
+            newConfigSet.removeIf(conf -> configsToDelete.contains(conf.name()));
+            Config updatedConfig = new Config(newConfigSet);
+            resourceMap.put(cr, updatedConfig);
+        });
+
+        AlterConfigsResult result = adminClient.alterConfigs(resourceMap);
+        result.all().get();
+    }
+
+    private void update(Namespace namespace) throws ExecutionException, InterruptedException {
+        List<ConfigResource> resources = getResourcesFromParameters(namespace);
+        DescribeConfigsResult configResults = adminClient.describeConfigs(resources);
+
+        Map<String, ConfigEntry> updatedConfigs = new HashMap<>();
+        for (String prop : namespace.getString(UPDATE_ARG).split(",")) {
+            String[] pieces = prop.split("=");
+            if (pieces.length != 2)
+                throw new IllegalArgumentException("Invalid property: " + prop);
+            updatedConfigs.put(pieces[0], new ConfigEntry(pieces[0], pieces[1]));
+        }
+
+        Map<ConfigResource, Config> resourceMap = new HashMap<>();
+        configResults.all().get().forEach((cr, c) -> {
+            Map<String, ConfigEntry> configs = c.entries()
+                    .stream()
+                    .filter(conf -> !conf.isDefault())
+                    .collect(Collectors.toMap(ConfigEntry::name, entry -> entry));
+            configs.putAll(updatedConfigs);
+            Config updatedConfig = new Config(configs.values());
+            resourceMap.put(cr, updatedConfig);
+        });
+
+        AlterConfigsResult result = adminClient.alterConfigs(resourceMap);
+        result.all().get();
+    }
+
+    private List<ConfigResource> getResourcesFromParameters(Namespace namespace) {
+        String brokers = namespace.getString("brokers");
+        String topics = namespace.getString("topics");
+
+        ConfigResource.Type resourceType;
+        String[] resourceArr;
+        if (brokers != null) {
+            resourceArr = brokers.split(",");
+            resourceType = ConfigResource.Type.BROKER;
+        } else if (topics != null) {
+            resourceArr = topics.split(",");
+            resourceType = ConfigResource.Type.TOPIC;
+        } else {
+            resourceArr = new String[0];
+            resourceType = ConfigResource.Type.UNKNOWN;
+        }
+        return Arrays.stream(resourceArr)
+                .map(id -> new ConfigResource(resourceType, id))
+                .collect(Collectors.toList());
     }
 
     @Override

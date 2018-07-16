@@ -46,12 +46,13 @@ public class InteractiveShell {
             shell: while (true) {
                 System.out.print("\nkafka> ");
                 BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
-                    String[] args = reader.readLine().split(" ");
-                    for (String arg : args) {
-                        if ("q".equals(arg) || "quit".equals(arg) || "exit".equals(arg))
-                            break shell;
-                    }
-                    execute(args);
+                String line = reader.readLine();
+                String[] args = line == null ? new String[0] : line.split(" ");
+                for (String arg : args) {
+                    if ("q".equals(arg) || "quit".equals(arg) || "exit".equals(arg))
+                        break shell;
+                }
+                execute(args);
             }
         } catch (IOException e) {
             e.printStackTrace();
