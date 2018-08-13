@@ -23,7 +23,7 @@ import kafka.api.{KafkaSasl, SaslSetup}
 import kafka.server.{BaseRequestTest, KafkaConfig}
 import kafka.utils.{JaasTestUtils, TestUtils}
 import org.apache.kafka.clients.admin.AdminClientConfig
-import org.apache.kafka.common.security.auth.SecurityProtocol
+import org.apache.kafka.common.security.auth.{KafkaPrincipal, SecurityProtocol}
 import org.junit.Assert._
 import org.junit.{After, Before, Test}
 
@@ -108,12 +108,22 @@ class DelegationTokenCommandTest extends BaseRequestTest with SaslSetup {
 
     // try describing tokens for unknown owner
     assertTrue(DelegationTokenCommand.describeToken(adminClient, getDescribeOpts(List("User:Unknown"))).isEmpty)
+
+    // create token3 with owner1 and renewer1
+    val owner1 = "User:owner1"
+    val token3 = DelegationTokenCommand.createToken(adminClient, getCreateOpts(List(renewer1), Option(owner1)))
+
+    tokens = DelegationTokenCommand.describeToken(adminClient, getDescribeOpts(List()))
+    assertTrue(tokens.size == 1)
+    assertEquals(token3, tokens.head)
+    assertEquals(owner1, tokens.head.tokenInfo().owner().toString)
   }
 
-  private def getCreateOpts(renewers: List[String]): DelegationTokenCommandOptions = {
+  private def getCreateOpts(renewers: List[String], ownerString: Option[String] = None): DelegationTokenCommandOptions = {
     val opts = ListBuffer("--bootstrap-server", brokerList, "--max-life-time-period", "-1",
       "--command-config", "testfile", "--create")
     renewers.foreach(renewer => opts ++= ListBuffer("--renewer-principal", renewer))
+    ownerString.foreach(principal => opts ++= ListBuffer("--owner-principal", principal))
     new DelegationTokenCommandOptions(opts.toArray)
   }
 

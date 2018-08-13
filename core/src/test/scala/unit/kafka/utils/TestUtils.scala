@@ -26,8 +26,8 @@ import java.security.cert.X509Certificate
 import java.time.Duration
 import java.util.{Collections, Properties}
 import java.util.concurrent.{Callable, ExecutionException, Executors, TimeUnit}
-
 import javax.net.ssl.X509TrustManager
+
 import kafka.api._
 import kafka.cluster.{Broker, EndPoint}
 import kafka.log._
@@ -48,7 +48,7 @@ import org.apache.kafka.common.header.Header
 import org.apache.kafka.common.internals.Topic
 import org.apache.kafka.common.network.{ListenerName, Mode}
 import org.apache.kafka.common.record._
-import org.apache.kafka.common.security.auth.SecurityProtocol
+import org.apache.kafka.common.security.auth.{KafkaPrincipal, SecurityProtocol}
 import org.apache.kafka.common.serialization.{ByteArrayDeserializer, ByteArraySerializer, Deserializer, Serializer}
 import org.apache.kafka.common.utils.Time
 import org.apache.kafka.common.utils.Utils._
@@ -1036,12 +1036,23 @@ object TestUtils extends Logging {
     trustManager
   }
 
-  def waitAndVerifyAcls(expected: Set[Acl], authorizer: Authorizer, resource: Resource) = {
+  def waitAndVerifyAcls(expected: Set[Acl], authorizer: Authorizer, resource: Resource, principal: Option[KafkaPrincipal] = None) = {
     val newLine = scala.util.Properties.lineSeparator
 
-    TestUtils.waitUntilTrue(() => authorizer.getAcls(resource) == expected,
+    if (principal.isEmpty) {
+         TestUtils.waitUntilTrue(() => authorizer.getAcls(resource) == expected,
+           s"expected acls:${expected.mkString(newLine + "\t", newLine + "\t", newLine)}" +
+             s"but got:${authorizer.getAcls(resource).mkString(newLine + "\t", newLine + "\t", newLine)}", waitTime = JTestUtils.DEFAULT_MAX_WAIT_MS)
+    } else {
+       TestUtils.waitUntilTrue(() => {
+         authorizer.getAcls(principal.get).get(resource) match {
+           case Some(actual) => actual == expected
+           case None => false
+         }
+       },
       s"expected acls:${expected.mkString(newLine + "\t", newLine + "\t", newLine)}" +
-        s"but got:${authorizer.getAcls(resource).mkString(newLine + "\t", newLine + "\t", newLine)}", waitTime = JTestUtils.DEFAULT_MAX_WAIT_MS)
+        s"but got:${authorizer.getAcls(principal.get).get(resource).mkString(newLine + "\t", newLine + "\t", newLine)}", waitTime = JTestUtils.DEFAULT_MAX_WAIT_MS)
+    }
   }
 
   /**

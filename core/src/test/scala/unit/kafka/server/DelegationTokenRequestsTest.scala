@@ -124,6 +124,45 @@ class DelegationTokenRequestsTest extends BaseRequestTest with SaslSetup {
     assertTrue(tokens.isEmpty)
   }
 
+  @Test
+  def testTokenCreationForOtherOwners(): Unit = {
+    adminClient = AdminClient.create(createAdminConfig)
+
+    // create token1 with owner1 and renewer1
+    val owner1 = SecurityUtils.parseKafkaPrincipal("User:owner1")
+    val createResult1 = adminClient.createDelegationToken(new CreateDelegationTokenOptions().owner(owner1))
+    val tokenCreated1 = createResult1.delegationToken().get()
+
+    // test above created token
+    var tokens = adminClient.describeDelegationToken().delegationTokens().get()
+    assertTrue(tokens.size() == 1)
+    val token1 = tokens.get(0)
+    assertEquals(tokenCreated1, token1)
+    assertEquals(owner1, token1.tokenInfo().owner())
+    val requestPrincipal = SecurityUtils.parseKafkaPrincipal("User:" + JaasTestUtils.KafkaPlainUser2)
+    assertEquals(requestPrincipal, token1.tokenInfo().tokenRequester())
+
+    // create token2 with owner2  and renewer2
+    val owner2 = SecurityUtils.parseKafkaPrincipal("User:owner2")
+    val createResult2 = adminClient.createDelegationToken(new CreateDelegationTokenOptions().owner(owner2))
+    val token2 = createResult2.delegationToken().get()
+
+    //get all tokens
+    tokens = adminClient.describeDelegationToken().delegationTokens().get()
+    assertTrue(tokens.size() == 2)
+    assertEquals(Set(token1, token2), tokens.asScala.toSet)
+
+    //get tokens for owner2
+    tokens = adminClient.describeDelegationToken(new DescribeDelegationTokenOptions().owners(List(owner2).asJava)).delegationTokens().get()
+    assertTrue(tokens.size() == 1)
+    assertEquals(token2, tokens.get(0))
+
+    //create token with invalid owner principal type
+    val owner3 = SecurityUtils.parseKafkaPrincipal("Group:owner3")
+    val createResult3 = adminClient.createDelegationToken(new CreateDelegationTokenOptions().owner(owner3))
+    intercept[ExecutionException](createResult3.delegationToken().get()).getCause.isInstanceOf[InvalidPrincipalTypeException]
+  }
+
   @After
   override def tearDown(): Unit = {
     if (adminClient != null)

@@ -44,6 +44,8 @@ public class DescribeDelegationTokenRequest extends AbstractRequest {
      */
     public static final Schema TOKEN_DESCRIBE_REQUEST_V1 = TOKEN_DESCRIBE_REQUEST_V0;
 
+    public static final Schema TOKEN_DESCRIBE_REQUEST_V2 = TOKEN_DESCRIBE_REQUEST_V1;
+
     public static class Builder extends AbstractRequest.Builder<DescribeDelegationTokenRequest> {
         // describe token for the given list of owners, or null if we want to describe all tokens.
         private final List<KafkaPrincipal> owners;
@@ -91,7 +93,7 @@ public class DescribeDelegationTokenRequest extends AbstractRequest {
     }
 
     public static Schema[] schemaVersions() {
-        return new Schema[]{TOKEN_DESCRIBE_REQUEST_V0, TOKEN_DESCRIBE_REQUEST_V1};
+        return new Schema[]{TOKEN_DESCRIBE_REQUEST_V0, TOKEN_DESCRIBE_REQUEST_V1, TOKEN_DESCRIBE_REQUEST_V2};
     }
 
     @Override

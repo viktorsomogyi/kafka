@@ -2238,7 +2238,7 @@ public class KafkaAdminClient extends AdminClient {
 
             @Override
             AbstractRequest.Builder createRequest(int timeoutMs) {
-                return new CreateDelegationTokenRequest.Builder(options.renewers(), options.maxlifeTimeMs());
+                return new CreateDelegationTokenRequest.Builder(options.owner(), options.renewers(), options.maxlifeTimeMs());
             }
 
             @Override
@@ -2247,7 +2247,7 @@ public class KafkaAdminClient extends AdminClient {
                 if (response.hasError()) {
                     delegationTokenFuture.completeExceptionally(response.error().exception());
                 } else {
-                    TokenInformation tokenInfo =  new TokenInformation(response.tokenId(), response.owner(),
+                    TokenInformation tokenInfo =  new TokenInformation(response.tokenId(), response.owner(), response.tokenRequester(),
                         options.renewers(), response.issueTimestamp(), response.maxTimestamp(), response.expiryTimestamp());
                     DelegationToken token = new DelegationToken(tokenInfo, response.hmacBytes());
                     delegationTokenFuture.complete(token);

@@ -1069,7 +1069,7 @@ class KafkaZkClientTest extends ZooKeeperTestHarness {
     val owner = SecurityUtils.parseKafkaPrincipal("User:owner1")
     val renewers = List(SecurityUtils.parseKafkaPrincipal("User:renewer1"), SecurityUtils.parseKafkaPrincipal("User:renewer1"))
 
-    val tokenInfo = new TokenInformation(tokenId, owner, renewers.asJava,
+    val tokenInfo = new TokenInformation(tokenId, owner, owner, renewers.asJava,
       System.currentTimeMillis(), System.currentTimeMillis(), System.currentTimeMillis())
     val bytes = new Array[Byte](20)
     Random.nextBytes(bytes)

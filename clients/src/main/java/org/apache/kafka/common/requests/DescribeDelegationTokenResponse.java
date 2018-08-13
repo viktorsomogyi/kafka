@@ -48,6 +48,7 @@ public class DescribeDelegationTokenResponse extends AbstractResponse {
     private static final String TOKEN_ID_KEY_NAME = "token_id";
     private static final String HMAC_KEY_NAME = "hmac";
     private static final String OWNER_KEY_NAME = "owner";
+    private static final String TOKEN_REQUESTER_KEY_NAME = "token_requester";
     private static final String RENEWERS_KEY_NAME = "renewers";
 
     private final Errors error;
@@ -75,6 +76,24 @@ public class DescribeDelegationTokenResponse extends AbstractResponse {
      */
     private static final Schema TOKEN_DESCRIBE_RESPONSE_V1 = TOKEN_DESCRIBE_RESPONSE_V0;
 
+
+    private static final Schema TOKEN_DETAILS_V2 = new Schema(
+        new Field(OWNER_KEY_NAME, new Schema(PRINCIPAL_TYPE, PRINCIPAL_NAME), "token owner."),
+        new Field(TOKEN_REQUESTER_KEY_NAME, new Schema(PRINCIPAL_TYPE, PRINCIPAL_NAME), "token requester."),
+        new Field(ISSUE_TIMESTAMP_KEY_NAME, INT64, "timestamp (in msec) when this token was generated."),
+        new Field(EXPIRY_TIMESTAMP_NAME, INT64, "timestamp (in msec) at which this token expires."),
+        new Field(MAX_TIMESTAMP_NAME, INT64, "max life time of this token."),
+        new Field(TOKEN_ID_KEY_NAME, STRING, "UUID to ensure uniqueness."),
+        new Field(HMAC_KEY_NAME, BYTES, "HMAC of the delegation token to be expired."),
+        new Field(RENEWERS_KEY_NAME, new ArrayOf(new Schema(PRINCIPAL_TYPE, PRINCIPAL_NAME)),
+            "An array of token renewers. Renewer is an Kafka PrincipalType and name string," +
+                " who is allowed to renew this token before the max lifetime expires."));
+
+    private static final Schema TOKEN_DESCRIBE_RESPONSE_V2 = new Schema(
+        ERROR_CODE,
+        new Field(TOKEN_DETAILS_KEY_NAME, new ArrayOf(TOKEN_DETAILS_V2)),
+        THROTTLE_TIME_MS);
+
     public DescribeDelegationTokenResponse(int throttleTimeMs, Errors error, List<DelegationToken> tokens) {
         this.throttleTimeMs = throttleTimeMs;
         this.error = error;
@@ -94,6 +113,10 @@ public class DescribeDelegationTokenResponse extends AbstractResponse {
 
             Struct ownerStruct = (Struct) singleRequestStruct.get(OWNER_KEY_NAME);
             KafkaPrincipal owner = new KafkaPrincipal(ownerStruct.get(PRINCIPAL_TYPE), ownerStruct.get(PRINCIPAL_NAME));
+
+            Struct tokenRequesterStruct = (Struct) singleRequestStruct.get(TOKEN_REQUESTER_KEY_NAME);
+            KafkaPrincipal tokenRequester = new KafkaPrincipal(tokenRequesterStruct.get(PRINCIPAL_TYPE), tokenRequesterStruct.get(PRINCIPAL_NAME));
+
             long issueTimestamp = singleRequestStruct.getLong(ISSUE_TIMESTAMP_KEY_NAME);
             long expiryTimestamp = singleRequestStruct.getLong(EXPIRY_TIMESTAMP_NAME);
             long maxTimestamp = singleRequestStruct.getLong(MAX_TIMESTAMP_NAME);
@@ -111,7 +134,8 @@ public class DescribeDelegationTokenResponse extends AbstractResponse {
                 }
             }
 
-            TokenInformation tokenInfo = new TokenInformation(tokenId, owner, renewers, issueTimestamp, maxTimestamp, expiryTimestamp);
+            TokenInformation tokenInfo = new TokenInformation(tokenId, owner, tokenRequester, renewers, issueTimestamp, maxTimestamp,
+                                                              expiryTimestamp);
 
             byte[] hmacBytes = new byte[hmac.remaining()];
             hmac.get(hmacBytes);
@@ -148,6 +172,12 @@ public class DescribeDelegationTokenResponse extends AbstractResponse {
             ownerStruct.set(PRINCIPAL_TYPE, tokenInfo.owner().getPrincipalType());
             ownerStruct.set(PRINCIPAL_NAME, tokenInfo.owner().getName());
             singleRequestStruct.set(OWNER_KEY_NAME, ownerStruct);
+
+            Struct tokenRequesterStruct = singleRequestStruct.instance(TOKEN_REQUESTER_KEY_NAME);
+            tokenRequesterStruct.set(PRINCIPAL_TYPE, tokenInfo.tokenRequester().getPrincipalType());
+            tokenRequesterStruct.set(PRINCIPAL_NAME, tokenInfo.tokenRequester().getName());
+            singleRequestStruct.set(TOKEN_REQUESTER_KEY_NAME, tokenRequesterStruct);
+
             singleRequestStruct.set(ISSUE_TIMESTAMP_KEY_NAME, tokenInfo.issueTimestamp());
             singleRequestStruct.set(EXPIRY_TIMESTAMP_NAME, tokenInfo.expiryTimestamp());
             singleRequestStruct.set(MAX_TIMESTAMP_NAME, tokenInfo.maxTimestamp());
@@ -175,7 +205,7 @@ public class DescribeDelegationTokenResponse extends AbstractResponse {
     }
 
     public static Schema[] schemaVersions() {
-        return new Schema[]{TOKEN_DESCRIBE_RESPONSE_V0, TOKEN_DESCRIBE_RESPONSE_V1};
+        return new Schema[]{TOKEN_DESCRIBE_RESPONSE_V0, TOKEN_DESCRIBE_RESPONSE_V1, TOKEN_DESCRIBE_RESPONSE_V2};
     }
 
     @Override

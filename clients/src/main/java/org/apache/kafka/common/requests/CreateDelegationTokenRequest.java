@@ -27,14 +27,19 @@ import org.apache.kafka.common.security.auth.KafkaPrincipal;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import static org.apache.kafka.common.protocol.types.Type.INT64;
 import static org.apache.kafka.common.protocol.CommonFields.PRINCIPAL_TYPE;
 import static org.apache.kafka.common.protocol.CommonFields.PRINCIPAL_NAME;
 
 public class CreateDelegationTokenRequest extends AbstractRequest {
+    private static final String OWNER_KEY_NAME = "owner";
     private static final String RENEWERS_KEY_NAME = "renewers";
     private static final String MAX_LIFE_TIME_KEY_NAME = "max_life_time";
+
+    private static final Field.NullableStr NULLABLE_PRINCIPAL_TYPE = new Field.NullableStr("principal_type", "principalType of the Kafka principal");
+    private static final Field.NullableStr NULLABLE_PRINCIPAL_NAME = new Field.NullableStr("name", "name of the Kafka principal");
 
     private static final Schema TOKEN_CREATE_REQUEST_V0 = new Schema(
             new Field(RENEWERS_KEY_NAME, new ArrayOf(new Schema(PRINCIPAL_TYPE, PRINCIPAL_NAME)),
@@ -49,12 +54,27 @@ public class CreateDelegationTokenRequest extends AbstractRequest {
      */
     private static final Schema TOKEN_CREATE_REQUEST_V1 = TOKEN_CREATE_REQUEST_V0;
 
+    /**
+     * In v2 version token owner can be passed
+     */
+    private static final Schema TOKEN_CREATE_REQUEST_V2 = new Schema(
+            new Field(OWNER_KEY_NAME, new Schema(NULLABLE_PRINCIPAL_TYPE, NULLABLE_PRINCIPAL_NAME),
+                      "Token owner. This is an Kafka PrincipalType and name string"),
+            new Field(RENEWERS_KEY_NAME, new ArrayOf(new Schema(PRINCIPAL_TYPE, PRINCIPAL_NAME)),
+                    "An array of token renewers. Renewer is an Kafka PrincipalType and name string," +
+                        " who is allowed to renew this token before the max lifetime expires."),
+            new Field(MAX_LIFE_TIME_KEY_NAME, INT64,
+                    "Max lifetime period for token in milli seconds. if value is -1, then max lifetime" +
+                        "  will default to a server side config value."));
+
+    private final Optional<KafkaPrincipal> owner;
     private final List<KafkaPrincipal> renewers;
     private final long maxLifeTime;
 
-    private CreateDelegationTokenRequest(short version, List<KafkaPrincipal> renewers, long maxLifeTime) {
+    private CreateDelegationTokenRequest(short version, Optional<KafkaPrincipal> owner, List<KafkaPrincipal> renewers, long maxLifeTime) {
         super(ApiKeys.CREATE_DELEGATION_TOKEN, version);
         this.maxLifeTime = maxLifeTime;
+        this.owner = owner;
         this.renewers = renewers;
     }
 
@@ -62,6 +82,15 @@ public class CreateDelegationTokenRequest extends AbstractRequest {
         super(ApiKeys.CREATE_DELEGATION_TOKEN, version);
         maxLifeTime = struct.getLong(MAX_LIFE_TIME_KEY_NAME);
         Object[] renewerArray = struct.getArray(RENEWERS_KEY_NAME);
+
+        Struct ownerStruct = (Struct) struct.get(OWNER_KEY_NAME);
+        String ownerPrincipalType = ownerStruct.get(NULLABLE_PRINCIPAL_TYPE);
+        String ownerPrincipalName = ownerStruct.get(NULLABLE_PRINCIPAL_NAME);
+        if (ownerPrincipalType != null && ownerPrincipalName != null)
+            owner = Optional.of(new KafkaPrincipal(ownerPrincipalType, ownerPrincipalName));
+        else
+            owner = Optional.empty();
+
         renewers = new ArrayList<>();
         if (renewerArray != null) {
             for (Object renewerObj : renewerArray) {
@@ -78,13 +107,21 @@ public class CreateDelegationTokenRequest extends AbstractRequest {
     }
 
     public static Schema[] schemaVersions() {
-        return new Schema[]{TOKEN_CREATE_REQUEST_V0, TOKEN_CREATE_REQUEST_V1};
+        return new Schema[]{TOKEN_CREATE_REQUEST_V0, TOKEN_CREATE_REQUEST_V1, TOKEN_CREATE_REQUEST_V2};
     }
 
     @Override
     protected Struct toStruct() {
         short version = version();
         Struct struct = new Struct(ApiKeys.CREATE_DELEGATION_TOKEN.requestSchema(version));
+
+        Struct ownerStruct = struct.instance(OWNER_KEY_NAME);
+        if (owner.isPresent()) {
+            ownerStruct.set(NULLABLE_PRINCIPAL_TYPE, owner.get().getPrincipalType());
+            ownerStruct.set(NULLABLE_PRINCIPAL_NAME, owner.get().getName());
+        }
+        struct.set(OWNER_KEY_NAME, ownerStruct);
+
         Object[] renewersArray = new Object[renewers.size()];
 
         int i = 0;
@@ -109,29 +146,40 @@ public class CreateDelegationTokenRequest extends AbstractRequest {
         return renewers;
     }
 
+    public Optional<KafkaPrincipal> owner() {
+        return owner;
+    }
+
     public long maxLifeTime() {
         return maxLifeTime;
     }
 
     public static class Builder extends AbstractRequest.Builder<CreateDelegationTokenRequest> {
+        private final Optional<KafkaPrincipal> owner;
         private final List<KafkaPrincipal> renewers;
         private final long maxLifeTime;
 
         public Builder(List<KafkaPrincipal> renewers, long maxLifeTime) {
+            this(Optional.empty(), renewers, maxLifeTime);
+        }
+
+        public Builder(Optional<KafkaPrincipal> owner, List<KafkaPrincipal> renewers, long maxLifeTime) {
             super(ApiKeys.CREATE_DELEGATION_TOKEN);
+            this.owner = owner;
             this.renewers = renewers;
             this.maxLifeTime = maxLifeTime;
         }
 
         @Override
         public CreateDelegationTokenRequest build(short version) {
-            return new CreateDelegationTokenRequest(version, renewers, maxLifeTime);
+            return new CreateDelegationTokenRequest(version, owner, renewers, maxLifeTime);
         }
 
         @Override
         public String toString() {
             StringBuilder bld = new StringBuilder();
             bld.append("(type: CreateDelegationTokenRequest").
+                append(", owner=").append(owner).
                 append(", renewers=").append(renewers).
                 append(", maxLifeTime=").append(maxLifeTime).
                 append(")");

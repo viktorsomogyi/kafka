@@ -346,7 +346,8 @@ class RequestQuotaTest extends BaseRequestTest {
           )
 
         case ApiKeys.CREATE_DELEGATION_TOKEN =>
-          new CreateDelegationTokenRequest.Builder(Collections.singletonList(SecurityUtils.parseKafkaPrincipal("User:test")), 1000)
+          new CreateDelegationTokenRequest.Builder(Optional.of(SecurityUtils.parseKafkaPrincipal("User:owner")),
+            Collections.singletonList(SecurityUtils.parseKafkaPrincipal("User:test")), 1000)
 
         case ApiKeys.EXPIRE_DELEGATION_TOKEN =>
           new ExpireDelegationTokenRequest.Builder("".getBytes, 1000)

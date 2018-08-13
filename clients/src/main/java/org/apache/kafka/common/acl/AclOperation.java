@@ -106,7 +106,17 @@ public enum AclOperation {
     /**
      * IDEMPOTENT_WRITE operation.
      */
-    IDEMPOTENT_WRITE((byte) 12);
+    IDEMPOTENT_WRITE((byte) 12),
+
+    /**
+     * CREATE_TOKENS operation.
+     */
+    CREATE_TOKENS((byte) 13),
+
+    /**
+     * DESCRIBE_TOKENS operation.
+     */
+    DESCRIBE_TOKENS((byte) 14);
 
     private final static HashMap<Byte, AclOperation> CODE_TO_VALUE = new HashMap<>();
 

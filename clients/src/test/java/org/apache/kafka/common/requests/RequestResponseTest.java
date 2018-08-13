@@ -279,10 +279,10 @@ public class RequestResponseTest {
         checkResponse(createCreatePartitionsResponse(), 0);
         checkRequest(createCreateTokenRequest());
         checkErrorResponse(createCreateTokenRequest(), new UnknownServerException());
-        checkResponse(createCreateTokenResponse(), 0);
+        checkResponse(createCreateTokenResponse(), 2);
         checkRequest(createDescribeTokenRequest());
         checkErrorResponse(createDescribeTokenRequest(), new UnknownServerException());
-        checkResponse(createDescribeTokenResponse(), 0);
+        checkResponse(createDescribeTokenResponse(), 2);
         checkRequest(createExpireTokenRequest());
         checkErrorResponse(createExpireTokenRequest(), new UnknownServerException());
         checkResponse(createExpireTokenResponse(), 0);
@@ -1243,7 +1243,8 @@ public class RequestResponseTest {
     }
 
     private CreateDelegationTokenResponse createCreateTokenResponse() {
-        return new CreateDelegationTokenResponse(20, Errors.NONE, SecurityUtils.parseKafkaPrincipal("User:user1"), System.currentTimeMillis(),
+        KafkaPrincipal owner = SecurityUtils.parseKafkaPrincipal("User:user1");
+        return new CreateDelegationTokenResponse(20, Errors.NONE, owner, owner, System.currentTimeMillis(),
             System.currentTimeMillis(), System.currentTimeMillis(), "token1", ByteBuffer.wrap("test".getBytes()));
     }
 
@@ -1277,10 +1278,12 @@ public class RequestResponseTest {
 
         List<DelegationToken> tokenList = new LinkedList<>();
 
-        TokenInformation tokenInfo1 = new TokenInformation("1", SecurityUtils.parseKafkaPrincipal("User:owner"), renewers,
+        KafkaPrincipal owner = SecurityUtils.parseKafkaPrincipal("User:owner");
+        TokenInformation tokenInfo1 = new TokenInformation("1", owner, owner, renewers,
             System.currentTimeMillis(), System.currentTimeMillis(), System.currentTimeMillis());
 
-        TokenInformation tokenInfo2 = new TokenInformation("2", SecurityUtils.parseKafkaPrincipal("User:owner1"), renewers,
+        KafkaPrincipal owner1 = SecurityUtils.parseKafkaPrincipal("User:owner1");
+        TokenInformation tokenInfo2 = new TokenInformation("2", owner1, owner1, renewers,
             System.currentTimeMillis(), System.currentTimeMillis(), System.currentTimeMillis());
 
         tokenList.add(new DelegationToken(tokenInfo1, "test".getBytes()));
