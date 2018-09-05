@@ -34,6 +34,8 @@ buildscript {
     classpath 'org.owasp:dependency-check-gradle:3.2.1'
     classpath "com.diffplug.spotless:spotless-plugin-gradle:3.10.0"
     classpath "gradle.plugin.com.github.spotbugs:spotbugs-gradle-plugin:1.6.3"
+    // For the japicmp lib, required here for intellij
+    classpath "com.github.siom79.japicmp:japicmp:0.13.0"
   }
 }
 
@@ -113,7 +115,6 @@ ext {
 
 apply from: file('wrapper.gradle')
 apply from: "$rootDir/gradle/compatibility.gradle"
-
 
 if (file('.git').exists()) {
   apply from: file('gradle/rat.gradle')
