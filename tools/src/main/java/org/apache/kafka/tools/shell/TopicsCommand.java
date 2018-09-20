@@ -30,8 +30,6 @@ import org.apache.kafka.clients.admin.ListTopicsResult;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.common.TopicPartitionInfo;
-import org.apache.kafka.common.config.Config;
-import org.apache.kafka.common.config.TopicConfig;
 
 import java.util.Collections;
 import java.util.concurrent.ExecutionException;
@@ -108,6 +106,10 @@ public class TopicsCommand extends ShellCommand {
                 case LIST:
                     list();
                     break;
+                default:
+                    // Since the argument parser should have caught the invalid command we don't
+                    // need to do anything here
+                    break;
             }
         } catch (ExecutionException | InterruptedException e) {
             e.printStackTrace();
@@ -155,7 +157,7 @@ public class TopicsCommand extends ShellCommand {
         result.values().forEach((name, future) -> {
             try {
                 TopicDescription td = future.get();
-                System.out.format("Topic:%s\tPartitionCount:%d\n",    //tReplicationFactor:%dtConfigs:%s%s
+                System.out.format("Topic:%s\tPartitionCount:%d%n",    //tReplicationFactor:%dtConfigs:%s%s
                         td.name(), td.partitions().size());
                 for (TopicPartitionInfo tp : td.partitions()) {
                     System.out.format("\tTopic: %s", td.name());
@@ -165,7 +167,7 @@ public class TopicsCommand extends ShellCommand {
                             .stream()
                             .map(node -> Integer.toString(node.id()))
                             .collect(Collectors.joining(",")));
-                    System.out.format("\tIsr: %s\n", tp.isr()
+                    System.out.format("\tIsr: %s%n", tp.isr()
                             .stream()
                             .map(node -> Integer.toString(node.id()))
                             .collect(Collectors.joining(",")));

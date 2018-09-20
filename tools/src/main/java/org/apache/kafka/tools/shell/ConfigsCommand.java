@@ -17,18 +17,29 @@
 
 package org.apache.kafka.tools.shell;
 
-import net.sourceforge.argparse4j.inf.*;
-import org.apache.kafka.clients.admin.*;
+
+import net.sourceforge.argparse4j.inf.MutuallyExclusiveGroup;
+import net.sourceforge.argparse4j.inf.Namespace;
+import net.sourceforge.argparse4j.inf.Subparser;
+import net.sourceforge.argparse4j.inf.Subparsers;
+import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.AlterConfigsResult;
+import org.apache.kafka.clients.admin.Config;
+import org.apache.kafka.clients.admin.ConfigEntry;
+import org.apache.kafka.clients.admin.DescribeConfigsResult;
 import org.apache.kafka.common.config.ConfigResource;
 
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 import static net.sourceforge.argparse4j.impl.Arguments.store;
-import static net.sourceforge.argparse4j.impl.Arguments.storeConst;
-import static net.sourceforge.argparse4j.impl.Arguments.storeTrue;
 
 public class ConfigsCommand extends ShellCommand {
 
@@ -94,6 +105,10 @@ public class ConfigsCommand extends ShellCommand {
                 case DESCRIBE:
                     describe(namespace);
                     break;
+                default:
+                    // Since the argument parser should have caught the invalid command we don't
+                    // need to do anything here
+                    break;
             }
         } catch (ExecutionException | InterruptedException e) {
             e.printStackTrace();
@@ -105,8 +120,8 @@ public class ConfigsCommand extends ShellCommand {
         DescribeConfigsResult configResults = adminClient.describeConfigs(resources);
         if (configResults != null) {
             configResults.all().get().forEach((cr, c) -> {
-                System.out.format("%s %s\n", cr.type(), cr.name());
-                c.entries().forEach(configEntry -> System.out.format("\t%s = %s\n", configEntry.name(), configEntry.value()));
+                System.out.format("%s %s%n", cr.type(), cr.name());
+                c.entries().forEach(configEntry -> System.out.format("\t%s = %s%n", configEntry.name(), configEntry.value()));
             });
         }
     }

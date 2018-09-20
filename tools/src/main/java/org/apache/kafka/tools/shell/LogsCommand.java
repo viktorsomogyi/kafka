@@ -62,6 +62,7 @@ public class LogsCommand extends ShellCommand {
         describe
                 .addArgument("-p", "--partition")
                 .type(Integer.class)
+                .setDefault(0)
                 .action(store());
     }
 
@@ -70,6 +71,10 @@ public class LogsCommand extends ShellCommand {
         switch (namespace.getString(LOGS_OPTIONS)) {
             case DESCRIBE:
                 describe(namespace);
+                break;
+            default:
+                // Since the argument parser should have caught the invalid command we don't
+                // need to do anything here
                 break;
         }
     }
@@ -93,7 +98,7 @@ public class LogsCommand extends ShellCommand {
                     System.out.format("\tTopic:%s", tp.topic());
                     System.out.format("\tPartition:%s", tp.partition());
                     System.out.format("\tDir:%s", logDirInfo.getCurrentReplicaLogDir());
-                    System.out.format("\tLag:%s\n", logDirInfo.getCurrentReplicaOffsetLag());
+                    System.out.format("\tLag:%s%n", logDirInfo.getCurrentReplicaOffsetLag());
                 } catch (InterruptedException | ExecutionException e) {
                     e.printStackTrace();
                 }
@@ -104,9 +109,9 @@ public class LogsCommand extends ShellCommand {
                 try {
                     Map<String, DescribeLogDirsResponse.LogDirInfo> ldInfo = info.get();
                     ldInfo.forEach((path, logdir) -> {
-                        System.out.format("Log dir: %s\n", path);
+                        System.out.format("Log dir: %s%n", path);
                         logdir.replicaInfos.forEach((tp, ri) ->
-                                System.out.format("\tTopic: %-30s\tPartition: %-6s\tSize: %-20s\tLag: %s\n",
+                                System.out.format("\tTopic: %-30s\tPartition: %-6s\tSize: %-20s\tLag: %s%n",
                                         tp.topic(), tp.partition(), ri.size, ri.offsetLag));
                     });
                 } catch (InterruptedException | ExecutionException e) {

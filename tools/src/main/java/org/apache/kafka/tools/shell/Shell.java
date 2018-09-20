@@ -39,7 +39,7 @@ import java.util.Properties;
 public class Shell {
 
     private static final String COMMAND = "command";
-    private static final Logger logger = LoggerFactory.getLogger(Shell.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(Shell.class);
     private Map<String, ShellCommand> commands = new HashMap<>();
     private AdminClient adminClient;
     private ArgumentParser parser;
@@ -52,15 +52,15 @@ public class Shell {
     private Shell() {
         Properties properties = getOverrideProperties();
         if (properties == null) {
-            logger.debug("No override properties found in KAFKA_SHELL_PROPERTIES");
+            LOGGER.debug("No override properties found in KAFKA_SHELL_PROPERTIES");
             properties = getOverrideConfig();
         }
         if (properties == null) {
-            logger.debug("No override config found in KAFKA_SHELL_CONFIG");
+            LOGGER.debug("No override config found in KAFKA_SHELL_CONFIG");
             properties = getDefaultConfig();
         }
         if (properties == null) {
-            logger.debug("No default config found in /etc/kafka-shell.properties");
+            LOGGER.debug("No default config found in /etc/kafka-shell.properties");
             properties = getFallbackConfig();
         }
         adminClient = KafkaAdminClient.create(properties);
@@ -95,8 +95,8 @@ public class Shell {
         File propsFile = new File(pathname);
         if (!propsFile.exists()) return null;
         Properties props = new Properties();
-        try {
-            props.load(new FileInputStream(propsFile));
+        try (FileInputStream fis = new FileInputStream(propsFile)) {
+            props.load(fis);
         } catch (IOException e) {
             e.printStackTrace();
             return null;

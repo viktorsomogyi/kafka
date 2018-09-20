@@ -84,6 +84,10 @@ public class ConsumerGroupsCommand extends ShellCommand {
                 case LIST:
                     list();
                     break;
+                default:
+                    // Since the argument parser should have caught the invalid command we don't
+                    // need to do anything here
+                    break;
             }
         } catch (ExecutionException | InterruptedException e) {
             e.printStackTrace();
@@ -121,14 +125,14 @@ public class ConsumerGroupsCommand extends ShellCommand {
             } else {
                 consumerType = "SIMPLE";
             }
-            System.out.format("\tGROUP: %s \n", group);
-            System.out.format("\tCONSUMER-TYPE: %s \n", consumerType);
-            System.out.format("\tCOORDINATOR-HOST: %s \n \n ", consumerGroupDescription.coordinator());
+            System.out.format("\tGROUP: %s %n", group);
+            System.out.format("\tCONSUMER-TYPE: %s %n", consumerType);
+            System.out.format("\tCOORDINATOR-HOST: %s %n %n ", consumerGroupDescription.coordinator());
         });
         try {
             Map<TopicPartition, OffsetAndMetadata> offset = offsetsResult.partitionsToOffsetAndMetadata().get();
             offset.forEach((topicPartition, offsetAndMetadata) -> {
-                System.out.format("\tTOPIC-PARTITION: %s-%s \t CURRENT-OFFSET: %s \n", topicPartition.topic(), topicPartition.partition(), offsetAndMetadata.offset());
+                System.out.format("\tTOPIC-PARTITION: %s-%s \t CURRENT-OFFSET: %s %n", topicPartition.topic(), topicPartition.partition(), offsetAndMetadata.offset());
             });
         } catch (InterruptedException | ExecutionException e) {
             e.printStackTrace();

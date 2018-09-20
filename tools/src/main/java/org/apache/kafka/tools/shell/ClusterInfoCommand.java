@@ -56,9 +56,9 @@ public class ClusterInfoCommand extends ShellCommand {
 
     private void printNodeData(Node n) {
         if (n.hasRack()) {
-            System.out.format("Address: %s:%s, Rack: %s\n", n.host(), n.port(), n.rack());
+            System.out.format("Address: %s:%s, Rack: %s%n", n.host(), n.port(), n.rack());
         } else {
-            System.out.format("Address: %s:%s\n", n.host(), n.port());
+            System.out.format("Address: %s:%s%n", n.host(), n.port());
         }
     }
 

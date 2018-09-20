@@ -20,7 +20,9 @@ package org.apache.kafka.tools.shell;
 import net.sourceforge.argparse4j.inf.Namespace;
 import net.sourceforge.argparse4j.inf.Subparser;
 import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.common.annotation.InterfaceStability;
 
+@InterfaceStability.Evolving
 abstract class ShellCommand {
 
     AdminClient adminClient;
