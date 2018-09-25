@@ -50,7 +50,7 @@ def repoExcludes = new ArrayList<String>(rootRepo.clean(ignore: false, directori
 static def collectArtifactJars(String workspace, String extraExcludes = "") {
   String includesPattern = '**/build/libs/kafka-*.jar **/build/libs/connect-*.jar'
   String excludesPattern = '**/build/libs/*-javadoc.jar **/build/libs/*-sources.jar **/build/libs/*-test.jar ' +
-          "**/build/libs/*-system-tests-*.jar **/build/libs/*-examples*.jar **/build/tmp/compatibility/* $extraExcludes"
+          "**/build/libs/*-system-tests-*.jar **/build/libs/*-examples*.jar **/build/libs/*-scaladoc.jar **/build/tmp/compatibility/* $extraExcludes"
   return new FileNameFinder().getFileNames(workspace, includesPattern, excludesPattern)
 }
 
@@ -172,7 +172,8 @@ task buildSourceBranch(type: GradleBuild, dependsOn: checkoutSourceBranch) {
     // When collecting the jars we need to exclude the 'source' and 'target' workspaces if we use the root
     // git repo as the one of the branches to compare. Those directories may exist (but a 'clean' would get
     // rid of them)
-    def sourceArtifacts = collectArtifactJars(sourceWorkspace, useRootAsSource ? "**/source/ **/target/" : "")
+    // exclude the main connect artifact anyway as that doesn't contain any code, it's just a metaproject
+    def sourceArtifacts = collectArtifactJars(sourceWorkspace, useRootAsSource ? "**/source/ **/target/ **/connect-${version}.*" : "**/connect-${version}.*")
     file(sourceArtifactsPath).write(sourceArtifacts.join("\n"))
   }
 }
@@ -190,7 +191,7 @@ task buildTargetBranch(type: GradleBuild, dependsOn: checkoutTargetBranch) {
 
   tasks = ['jar']
   doLast {
-    def targetArtifacts = collectArtifactJars(targetWorkspace, useRootAsTarget ? "**/source/ **/target/" : "")
+    def targetArtifacts = collectArtifactJars(targetWorkspace, useRootAsTarget ? "**/source/ **/target/ **/connect-${version}.*" : "**/connect-${version}.*")
     file(targetArtifactsPath).write(targetArtifacts.join(System.lineSeparator()))
   }
 }
