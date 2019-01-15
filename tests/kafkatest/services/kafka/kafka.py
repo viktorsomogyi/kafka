@@ -342,7 +342,7 @@ class KafkaService(KafkaPathResolverMixin, JmxMixin, Service):
         cmd = kafka_topic_script + " "
         if node.version > LATEST_2_1 or node.version == DEV_BRANCH:
             cmd += "--bootstrap-server %(bootstrap_servers)s --create --topic %(topic)s " % {
-                'bootstrap_servers': self.bootstrap_servers(),
+                'bootstrap_servers': self.bootstrap_servers(self.security_protocol),
                 'topic': topic_cfg.get("topic"),
             }
         else:
