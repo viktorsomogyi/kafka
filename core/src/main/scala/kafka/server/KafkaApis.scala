@@ -47,7 +47,7 @@ import org.apache.kafka.common.acl.AclOperation._
 import org.apache.kafka.common.config.ConfigResource
 import org.apache.kafka.common.errors._
 import org.apache.kafka.common.internals.FatalExitError
-import org.apache.kafka.common.internals.Topic.{GROUP_METADATA_TOPIC_NAME, TRANSACTION_STATE_TOPIC_NAME, isInternal}
+import org.apache.kafka.common.internals.Topic.{isInternal, GROUP_METADATA_TOPIC_NAME, TRANSACTION_STATE_TOPIC_NAME}
 import org.apache.kafka.common.message.AlterConfigsResponseData.AlterConfigsResourceResponse
 import org.apache.kafka.common.message.CreateTopicsRequestData.CreatableTopic
 import org.apache.kafka.common.message.CreatePartitionsResponseData.CreatePartitionsTopicResult
@@ -79,12 +79,14 @@ import org.apache.kafka.common.utils.{ProducerIdAndEpoch, Time, Utils}
 import org.apache.kafka.common.{Node, TopicPartition}
 import org.apache.kafka.common.message.MetadataResponseData
 import org.apache.kafka.common.message.MetadataResponseData.{MetadataResponsePartition, MetadataResponseTopic}
+import org.apache.kafka.common.security.audit.{AuditEvent, Auditor}
+import org.apache.kafka.common.security.audit.types.{TopicCreatedEvent, TopicDeletedEvent}
 import org.apache.kafka.server.authorizer._
 
 import scala.compat.java8.OptionConverters._
 import scala.jdk.CollectionConverters._
 import scala.collection.mutable.ArrayBuffer
-import scala.collection.{Map, Seq, Set, immutable, mutable}
+import scala.collection.{immutable, mutable, Map, Seq, Set}
 import scala.util.{Failure, Success, Try}
 
 
@@ -108,7 +110,8 @@ class KafkaApis(val requestChannel: RequestChannel,
                 brokerTopicStats: BrokerTopicStats,
                 val clusterId: String,
                 time: Time,
-                val tokenManager: DelegationTokenManager) extends Logging {
+                val tokenManager: DelegationTokenManager,
+                val auditors: List[Auditor] = List.empty) extends Logging {
 
   type FetchResponseStats = Map[TopicPartition, RecordConversionStats]
   this.logIdent = "[KafkaApi-%d] ".format(brokerId)
@@ -1732,6 +1735,12 @@ class KafkaApis(val requestChannel: RequestChannel,
               .setTopicConfigErrorCode(0.toShort)
           }
         }
+        results.asScala.foreach( result => {
+          auditors.foreach(_.onEvent(new AuditEvent(
+            request.context,
+            new TopicCreatedEvent(result.name(), result.numPartitions(), Errors.forCode(result.errorCode())))))
+        })
+
         sendResponseCallback(results)
       }
       adminManager.createTopics(createTopicsRequest.data.timeoutMs,
@@ -1849,6 +1858,11 @@ class KafkaApis(val requestChannel: RequestChannel,
               results.find(topicName)
                 .setErrorCode(error.code)
           }
+          results.asScala.foreach(result => {
+            auditors.foreach(_.onEvent(new AuditEvent(
+              request.context,
+              new TopicDeletedEvent(result.name(), Errors.forCode(result.errorCode())))))
+          })
           sendResponseCallback(results)
         }
 

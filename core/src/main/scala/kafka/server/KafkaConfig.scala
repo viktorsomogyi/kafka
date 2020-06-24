@@ -30,6 +30,7 @@ import kafka.utils.CoreUtils
 import kafka.utils.Implicits._
 import org.apache.kafka.clients.CommonClientConfigs
 import org.apache.kafka.common.Reconfigurable
+import org.apache.kafka.common.security.audit.{AuditEventType, Auditor, LoggingAuditor}
 import org.apache.kafka.common.config.SecurityConfig
 import org.apache.kafka.common.config.ConfigDef.{ConfigKey, ValidList}
 import org.apache.kafka.common.config.internals.BrokerSecurityConfigs
@@ -71,6 +72,9 @@ object Defaults {
 
   /************* Authorizer Configuration ***********/
   val AuthorizerClassName = ""
+
+  /************* Auditor Configuration ***********/
+  val AuditorClassNames = classOf[LoggingAuditor].getName
 
   /** ********* Socket Server Configuration ***********/
   val Port = 9092
@@ -346,6 +350,8 @@ object KafkaConfig {
   val RequestTimeoutMsProp = CommonClientConfigs.REQUEST_TIMEOUT_MS_CONFIG
   /************* Authorizer Configuration ***********/
   val AuthorizerClassNameProp = "authorizer.class.name"
+  /************* Auditor Configuration *************/
+  val AuditorClassesProp = "auditors"
   /** ********* Socket Server Configuration ***********/
   val PortProp = "port"
   val HostNameProp = "host.name"
@@ -621,6 +627,10 @@ object KafkaConfig {
   val AuthorizerClassNameDoc = s"The fully qualified name of a class that implements s${classOf[Authorizer].getName}" +
   " interface, which is used by the broker for authorization. This config also supports authorizers that implement the deprecated" +
   " kafka.security.auth.Authorizer trait which was previously used for authorization."
+  /************* Auditor Configuration ***********/
+  val AuditorClassesDoc = s"The fully qualified name of a class that implements s${classOf[Auditor].getName}" +
+    s" interface, which is used for capturing events defined by s${classOf[AuditEventType].getName}, such as topic creation/deletion," +
+    s" ACL creation/deletion or connecting/disconnecting clients."
   /** ********* Socket Server Configuration ***********/
   val PortDoc = "DEPRECATED: only used when <code>listeners</code> is not set. " +
   "Use <code>listeners</code> instead. \n" +
@@ -995,6 +1005,9 @@ object KafkaConfig {
 
       /************* Authorizer Configuration ***********/
       .define(AuthorizerClassNameProp, STRING, Defaults.AuthorizerClassName, LOW, AuthorizerClassNameDoc)
+
+      /************* Auditor Configuration ***********/
+      .define(AuditorClassesProp, LIST, Defaults.AuditorClassNames, LOW, AuthorizerClassNameDoc)
 
       /** ********* Socket Server Configuration ***********/
       .define(PortProp, INT, Defaults.Port, HIGH, PortDoc)
@@ -1417,6 +1430,10 @@ class KafkaConfig(val props: java.util.Map[_, _], doLog: Boolean, dynamicConfigO
       Some(AuthorizerUtils.createAuthorizer(className))
     }
   }
+
+  /************* Auditor Configuration ***********/
+  val auditors: List[Auditor] = getList(KafkaConfig.AuditorClassesProp)
+    .asScala.map(Utils.newInstance(_, classOf[Auditor])).toList
 
   /** ********* Socket Server Configuration ***********/
   val hostName = getString(KafkaConfig.HostNameProp)
