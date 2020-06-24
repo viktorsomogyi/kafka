@@ -50,6 +50,7 @@ import org.apache.kafka.common.requests.UpdateMetadataRequest;
 import org.apache.kafka.common.security.auth.KafkaPrincipal;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.kafka.common.utils.SystemTime;
+import org.apache.kafka.server.auditor.Auditor;
 import org.mockito.Mockito;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -65,6 +66,7 @@ import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.annotations.Warmup;
 import scala.Option;
+import scala.collection.immutable.List$;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -181,7 +183,8 @@ public class MetadataRequestBenchmark {
             brokerTopicStats,
             "clusterId",
             new SystemTime(),
-            null);
+            null,
+            List$.MODULE$.empty());
     }
 
     @TearDown(Level.Trial)

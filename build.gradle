@@ -737,6 +737,7 @@ project(':core') {
 
   dependencies {
     compile project(':clients')
+//    compile libs.atlasHook
     compile libs.jacksonDatabind
     compile libs.jacksonModuleScala
     compile libs.jacksonDataformatCsv
@@ -1027,6 +1028,9 @@ project(':clients') {
     compile libs.lz4
     compile libs.snappy
     compile libs.slf4jApi
+//    compile libs.log4j
+//    compile libs.slf4jlog4j
+
 
     compileOnly libs.jacksonDatabind // for SASL/OAUTHBEARER bearer token parsing
     compileOnly libs.jacksonJDK8Datatypes
