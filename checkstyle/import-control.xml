@@ -115,6 +115,10 @@
       </subpackage>
       <subpackage name="audit">
         <allow pkg="org.apache.kafka.common.requests" />
+        <allow pkg="org.apache.atlas" />
+        <allow pkg="org.apache.kafka.clients.admin" />
+        <allow pkg="org.apache.commons" />
+        <allow pkg="org.apache.hadoop.security" />
       </subpackage>
     </subpackage>
 
