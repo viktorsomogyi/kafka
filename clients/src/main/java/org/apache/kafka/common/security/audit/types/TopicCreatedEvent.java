@@ -32,6 +32,14 @@ public class TopicCreatedEvent implements AuditEventType {
         this.error = error;
     }
 
+    public String topicName() {
+        return topicName;
+    }
+
+    public int partitions() {
+        return partitions;
+    }
+
     @Override
     public String toString() {
         return "TopicCreatedEvent{" +

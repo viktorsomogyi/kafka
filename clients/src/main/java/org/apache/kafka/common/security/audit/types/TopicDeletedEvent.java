@@ -30,6 +30,10 @@ public class TopicDeletedEvent implements AuditEventType {
         this.error = error;
     }
 
+    public String topicName() {
+        return topicName;
+    }
+
     @Override
     public String toString() {
         return "TopicDeletedEvent{" +
