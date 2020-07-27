@@ -24,11 +24,13 @@ public class TopicCreatedEvent implements AuditEventType {
 
     private final String topicName;
     private final int partitions;
+    private final int replicationFactor;
     private final Errors error;
 
-    public TopicCreatedEvent(String topicName, int partitions, Errors error) {
+    public TopicCreatedEvent(String topicName, int partitions, int replicationFactor, Errors error) {
         this.topicName = topicName;
         this.partitions = partitions;
+        this.replicationFactor = replicationFactor;
         this.error = error;
     }
 
@@ -40,11 +42,16 @@ public class TopicCreatedEvent implements AuditEventType {
         return partitions;
     }
 
+    public int replicationFactor() {
+        return replicationFactor;
+    }
+
     @Override
     public String toString() {
         return "TopicCreatedEvent{" +
             "topicName='" + topicName + '\'' +
             ", partitions=" + partitions +
+            ", replicationFactor=" + replicationFactor +
             ", error=" + error +
             '}';
     }

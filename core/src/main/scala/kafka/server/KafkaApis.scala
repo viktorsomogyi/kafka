@@ -1738,7 +1738,7 @@ class KafkaApis(val requestChannel: RequestChannel,
         results.asScala.foreach( result => {
           auditors.foreach(_.onEvent(new AuditEvent(
             request.context,
-            new TopicCreatedEvent(result.name(), result.numPartitions(), Errors.forCode(result.errorCode())))))
+            new TopicCreatedEvent(result.name(), result.numPartitions(), result.replicationFactor(), Errors.forCode(result.errorCode())))))
         })
 
         sendResponseCallback(results)
@@ -1762,6 +1762,7 @@ class KafkaApis(val requestChannel: RequestChannel,
             .setErrorCode(error.error.code)
             .setErrorMessage(error.message)
         }.toSeq
+        createPartitionsRequest.data.topics.asScala.foreach(t => t)
         val responseBody = new CreatePartitionsResponse(new CreatePartitionsResponseData()
           .setThrottleTimeMs(requestThrottleMs)
           .setResults(createPartitionsResults.asJava))
@@ -1769,6 +1770,7 @@ class KafkaApis(val requestChannel: RequestChannel,
           s"client ${request.header.clientId}.")
         responseBody
       }
+
       sendResponseMaybeThrottle(request, createResponse)
     }
 

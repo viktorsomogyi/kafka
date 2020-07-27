@@ -66,6 +66,7 @@ public class AtlasAuditor implements Auditor {
     private static final String ATTRIBUTE_QUALIFIED_NAME = "qualifiedName";
     private static final String DESCRIPTION_ATTR = "description";
     private static final String PARTITION_COUNT = "partitionCount";
+    private static final String REPLICATION_FACTOR = "replicationFactor";
     private static final String NAME = "name";
     private static final String URI = "uri";
     private static final String CLUSTERNAME = "clusterName";
@@ -161,7 +162,7 @@ public class AtlasAuditor implements Auditor {
                                 .map(qt -> {
                                     try {
                                         TopicDescription td = topicDescriptionMap.get(getSimpleTopicName(qt)).get();
-                                        return atlasTopicEntity(td.name(), td.partitions().size()).getEntity();
+                                        return atlasTopicEntity(td.name(), td.partitions().size(), td.partitions().get(0).replicas().size()).getEntity();
                                     } catch (InterruptedException | ExecutionException e) {
                                         throw new KafkaException(e);
                                     }
@@ -200,7 +201,7 @@ public class AtlasAuditor implements Auditor {
     }
 
     void onTopicCreated(RequestContext context, TopicCreatedEvent event) throws Exception {
-        AtlasEntity.AtlasEntityWithExtInfo entity = atlasTopicEntity(event.topicName(), event.partitions());
+        AtlasEntity.AtlasEntityWithExtInfo entity = atlasTopicEntity(event.topicName(), event.partitions(), event.replicationFactor());
 
         AtlasEntity.AtlasEntityWithExtInfo ret;
 
@@ -218,7 +219,19 @@ public class AtlasAuditor implements Auditor {
         }
     }
 
-    private AtlasEntity.AtlasEntityWithExtInfo atlasTopicEntity(String topicName, int partitions) {
+    void onTopicDeleted(RequestContext context, TopicDeletedEvent event) throws AtlasServiceException {
+        AtlasEntity.AtlasEntityWithExtInfo entity = atlasClientV2.getEntityByAttribute(KAFKA_TOPIC,
+            Collections.singletonMap(ATTRIBUTE_QUALIFIED_NAME, getTopicQualifiedName(metadataNamespace, event.topicName())));
+        EntityMutationResponse response = atlasClientV2.deleteEntityByGuid(entity.getEntity().getGuid());
+        List<AtlasEntityHeader> entities = response.getDeletedEntities();
+        if (CollectionUtils.isNotEmpty(entities)) {
+            entities.forEach(e -> LOG.info("Deleted topic entity {} with guid={}", event.topicName(), e.getGuid()));
+        } else {
+            LOG.warn("Couldn't delete topic {} from Atlas", event.topicName());
+        }
+    }
+
+    private AtlasEntity.AtlasEntityWithExtInfo atlasTopicEntity(String topicName, int partitions, int replicationFactor) {
         final AtlasEntity ent = new AtlasEntity(KAFKA_TOPIC);
 
         String qualifiedName = getTopicQualifiedName(metadataNamespace, topicName);
@@ -230,19 +243,8 @@ public class AtlasAuditor implements Auditor {
         ent.setAttribute(DESCRIPTION_ATTR, topicName);
         ent.setAttribute(URI, topicName);
         ent.setAttribute(PARTITION_COUNT, partitions);
+        ent.setAttribute(REPLICATION_FACTOR, replicationFactor);
         return new AtlasEntity.AtlasEntityWithExtInfo(ent);
-    }
-
-    void onTopicDeleted(RequestContext context, TopicDeletedEvent event) throws AtlasServiceException {
-        AtlasEntity.AtlasEntityWithExtInfo entity = atlasClientV2.getEntityByAttribute(KAFKA_TOPIC,
-            Collections.singletonMap(ATTRIBUTE_QUALIFIED_NAME, getTopicQualifiedName(metadataNamespace, event.topicName())));
-        EntityMutationResponse response = atlasClientV2.deleteEntityByGuid(entity.getEntity().getGuid());
-        List<AtlasEntityHeader> entities = response.getDeletedEntities();
-        if (CollectionUtils.isNotEmpty(entities)) {
-            entities.forEach(e -> LOG.info("Deleted topic entity {} with guid={}", event.topicName(), e.getGuid()));
-        } else {
-            LOG.warn("Couldn't delete topic {} from Atlas", event.topicName());
-        }
     }
 
     static String getTopicQualifiedName(String metadataNamespace, String topic) {
