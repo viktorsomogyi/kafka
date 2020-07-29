@@ -129,22 +129,39 @@ public class AtlasAuditor implements Auditor {
 
                         List<AtlasEntity> queriedAtlasEntities = atlasEntitiesWithExtInfo.getEntities();
                         List<AtlasEntity> atlasEntities = queriedAtlasEntities == null ? new ArrayList<>() : queriedAtlasEntities;
-                        List<AtlasEntity> entitiesToBeDeleted = atlasEntities
+                        Map<String, AtlasEntity> entitiesToBeDeleted = atlasEntities
                             .stream()
                             .filter(ae -> !qualifiedTopics.contains(ae.getAttribute(ATTRIBUTE_QUALIFIED_NAME)))
-                            .collect(Collectors.toList());
-                        List<String> topicsToBeCreated = qualifiedTopics
+                            .collect(Collectors.toMap(ae -> (String) ae.getAttribute(ATTRIBUTE_QUALIFIED_NAME), ae -> ae));
+                        Set<String> topicsToBeCreated = qualifiedTopics
                             .stream()
                             .filter(t -> atlasEntities
                                 .stream()
                                 .noneMatch(ae -> ae.getAttribute(ATTRIBUTE_QUALIFIED_NAME).equals(t)))
-                            .collect(Collectors.toList());
-//                        List<AtlasEntity> topicsToBeUpdated = atlasEntities
-//                            .stream()
+                            .collect(Collectors.toSet());
+                        Map<String, AtlasEntity> topicsToBeUpdated = atlasEntities
+                            .stream()
+                            .filter(ae -> !entitiesToBeDeleted.containsKey(ae.getAttribute(ATTRIBUTE_QUALIFIED_NAME)))
+                            .filter(ae -> !topicsToBeCreated.contains(ae.getAttribute(ATTRIBUTE_QUALIFIED_NAME)))
+                            .collect(Collectors.toMap(ae -> (String) ae.getAttribute(TOPIC), ae -> ae));
+                        Map<String, TopicDescription> kafkaTopicsDescription = admin.describeTopics(topicsToBeUpdated.keySet()).all().get();
+                        topicsToBeUpdated.values()
+                            .forEach(ae -> {
+                                TopicDescription td = kafkaTopicsDescription.get(ae.getAttribute(TOPIC));
+                                if (td != null) {
+                                    if ((Integer)ae.getAttribute(PARTITION_COUNT) != td.partitions().size()) {
+                                        ae.setAttribute(PARTITION_COUNT, td.partitions().size());
+                                    }
+                                    if ((Integer)ae.getAttribute(REPLICATION_FACTOR) != td.partitions().get(0).replicas().size()) {
+                                        ae.setAttribute(REPLICATION_FACTOR, td.partitions().get(0).replicas().size());
+                                    }
+                                }
+                            });
                         LOG.info("Topic entities to be deleted from Atlas: {}", entitiesToBeDeleted);
                         LOG.info("Topic entities to be created in Atlas: {}", topicsToBeCreated);
+                        LOG.info("Topic entities to be updated in Atlas: {}", topicsToBeUpdated);
                         if (!entitiesToBeDeleted.isEmpty()) {
-                            atlasClientV2.deleteEntitiesByGuids(entitiesToBeDeleted
+                            atlasClientV2.deleteEntitiesByGuids(entitiesToBeDeleted.values()
                                 .stream()
                                 .map(AtlasEntity::getGuid)
                                 .collect(Collectors.toList()));
@@ -170,7 +187,14 @@ public class AtlasAuditor implements Auditor {
                                 .collect(Collectors.toList());
                             atlasClientV2.createEntities(new AtlasEntity.AtlasEntitiesWithExtInfo(atlasEntitiesToBeCreated));
                         }
+                        if (!topicsToBeUpdated.values().isEmpty()) {
+                            atlasClientV2.updateEntities(new AtlasEntity.AtlasEntitiesWithExtInfo(new ArrayList<>(topicsToBeUpdated.values())));
+                        }
                     } catch (AtlasServiceException e) {
+                        e.printStackTrace();
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    } catch (ExecutionException e) {
                         e.printStackTrace();
                     }
                 });
