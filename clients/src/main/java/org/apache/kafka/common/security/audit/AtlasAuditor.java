@@ -21,9 +21,11 @@ import org.apache.atlas.ApplicationProperties;
 import org.apache.atlas.AtlasClientV2;
 import org.apache.atlas.AtlasException;
 import org.apache.atlas.AtlasServiceException;
+import org.apache.atlas.hook.AtlasHook;
 import org.apache.atlas.model.instance.AtlasEntity;
 import org.apache.atlas.model.instance.AtlasEntityHeader;
 import org.apache.atlas.model.instance.EntityMutationResponse;
+import org.apache.atlas.model.notification.HookNotification;
 import org.apache.atlas.utils.AuthenticationUtil;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.configuration.Configuration;
@@ -37,6 +39,9 @@ import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.requests.RequestContext;
 import org.apache.kafka.common.security.audit.types.TopicCreatedEvent;
 import org.apache.kafka.common.security.audit.types.TopicDeletedEvent;
+import org.apache.kafka.server.authorizer.Action;
+import org.apache.kafka.server.authorizer.AuthorizableRequestContext;
+import org.apache.kafka.server.authorizer.AuthorizationResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -74,9 +79,17 @@ public class AtlasAuditor implements Auditor {
     private static final String KAFKA_TOPIC = "kafka_topic";
     public static final String AUDITOR_ADMIN_CLIENT_CONFIG_PREFIX = "auditors.admin.";
 
+    private final KafkaAtlasHook atlasHook;
     private final AtlasClientV2 atlasClientV2;
     private final String metadataNamespace;
     private final Executor asyncTaskExecutor;
+
+    private class KafkaAtlasHook extends AtlasHook {
+        @Override
+        protected void notifyEntities(List<HookNotification> messages, UserGroupInformation ugi) {
+            super.notifyEntities(messages, ugi);
+        }
+    }
 
     public AtlasAuditor() {
         try {
@@ -92,6 +105,7 @@ public class AtlasAuditor implements Auditor {
                 UserGroupInformation ugi = UserGroupInformation.getCurrentUser();
                 atlasClientV2 = new AtlasClientV2(ugi, ugi.getShortUserName(), urls);
             }
+            atlasHook = new KafkaAtlasHook();
             metadataNamespace = getMetadataNamespace(atlasConf);
             asyncTaskExecutor = Executors.newSingleThreadExecutor();
         } catch (AtlasException | IOException e) {
@@ -110,6 +124,11 @@ public class AtlasAuditor implements Auditor {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    @Override
+    public void audit(AuthorizableRequestContext requestContext, Action actions, AuthorizationResult authorizationResults, Errors actionResult) {
+
     }
 
     @Override
@@ -149,10 +168,10 @@ public class AtlasAuditor implements Auditor {
                             .forEach(ae -> {
                                 TopicDescription td = kafkaTopicsDescription.get(ae.getAttribute(TOPIC));
                                 if (td != null) {
-                                    if ((Integer)ae.getAttribute(PARTITION_COUNT) != td.partitions().size()) {
+                                    if ((Integer) ae.getAttribute(PARTITION_COUNT) != td.partitions().size()) {
                                         ae.setAttribute(PARTITION_COUNT, td.partitions().size());
                                     }
-                                    if ((Integer)ae.getAttribute(REPLICATION_FACTOR) != td.partitions().get(0).replicas().size()) {
+                                    if ((Integer) ae.getAttribute(REPLICATION_FACTOR) != td.partitions().get(0).replicas().size()) {
                                         ae.setAttribute(REPLICATION_FACTOR, td.partitions().get(0).replicas().size());
                                     }
                                 }

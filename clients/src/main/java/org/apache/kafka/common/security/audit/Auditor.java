@@ -18,8 +18,14 @@
 package org.apache.kafka.common.security.audit;
 
 import org.apache.kafka.common.Configurable;
+import org.apache.kafka.common.protocol.Errors;
+import org.apache.kafka.server.authorizer.Action;
+import org.apache.kafka.server.authorizer.AuthorizableRequestContext;
+import org.apache.kafka.server.authorizer.AuthorizationResult;
 
 public interface Auditor extends Configurable {
 
     void onEvent(AuditEvent event);
+
+    void audit(AuthorizableRequestContext requestContext, Action actions, AuthorizationResult authorizationResults, Errors actionResult);
 }

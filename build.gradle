@@ -970,6 +970,8 @@ project(':clients') {
     compile libs.snappy
     compile libs.slf4jApi
     compile libs.atlasClientV2
+    compile libs.atlasNotification
+    compile libs.caffeine
 
     compileOnly libs.jacksonDatabind // for SASL/OAUTHBEARER bearer token parsing
     compileOnly libs.jacksonJDK8Datatypes

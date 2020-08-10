@@ -17,6 +17,10 @@
 
 package org.apache.kafka.common.security.audit;
 
+import org.apache.kafka.common.protocol.Errors;
+import org.apache.kafka.server.authorizer.Action;
+import org.apache.kafka.server.authorizer.AuthorizableRequestContext;
+import org.apache.kafka.server.authorizer.AuthorizationResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,6 +33,11 @@ public class LoggingAuditor implements Auditor {
     @Override
     public void onEvent(AuditEvent event) {
         LOG.info("New event: {}", event);
+    }
+
+    @Override
+    public void audit(AuthorizableRequestContext requestContext, Action actions, AuthorizationResult authorizationResults, Errors actionResult) {
+
     }
 
     @Override
