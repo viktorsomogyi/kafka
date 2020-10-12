@@ -27,7 +27,7 @@ import org.apache.kafka.streams.processor.MockProcessorContext;
 import org.apache.kafka.streams.processor.Processor;
 import org.apache.kafka.streams.processor.ProcessorContext;
 import org.apache.kafka.streams.state.ValueAndTimestamp;
-import org.apache.kafka.streams.state.internals.Murmur3;
+import org.apache.kafka.common.utils.Murmur3;
 import org.junit.Test;
 
 import java.util.HashMap;

@@ -18,6 +18,7 @@ package org.apache.kafka.streams.state.internals;
 
 import static org.junit.Assert.*;
 
+import org.apache.kafka.common.utils.Murmur3;
 import org.junit.Test;
 
 import java.util.Map;
