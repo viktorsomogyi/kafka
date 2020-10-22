@@ -17,8 +17,9 @@
 
 package kafka.log
 
-import java.util.Arrays
 import java.nio.ByteBuffer
+import java.nio.charset.Charset
+import java.util
 
 import kafka.utils._
 import org.apache.kafka.common.utils.{Murmur3, Utils}
@@ -38,8 +39,6 @@ class MurmurOffsetMap(val memory: Int) extends OffsetMap {
   /* create some hash buffers to avoid reallocating each time */
   private val hash1 = ByteBuffer.wrap(new Array[Byte](hashSize))
   private val hash2 = new Array[Byte](hashSize)
-//  private val hash1 = new Array[Byte](hashSize)
-//  private val hash2 = new Array[Byte](hashSize)
 
   /* number of entries put into the map */
   private var entries = 0
@@ -56,7 +55,7 @@ class MurmurOffsetMap(val memory: Int) extends OffsetMap {
   /**
    * The number of bytes of space each entry uses (the number of bytes in the hash plus an 8 byte offset)
    */
-  val bytesPerEntry = hashSize + 8
+  val bytesPerEntry: Int = hashSize + 8
 
   /**
    * The maximum number of entries this map can contain
@@ -78,7 +77,7 @@ class MurmurOffsetMap(val memory: Int) extends OffsetMap {
     while(!isEmpty(pos)) {
       bytes.position(pos)
       bytes.get(hash2)
-      if(Arrays.equals(hash1.array(), hash2)) {
+      if(util.Arrays.equals(hash1.array(), hash2)) {
         // we found an existing entry, overwrite it and return (size does not change)
         bytes.putLong(offset)
         lastOffset = offset
@@ -124,7 +123,7 @@ class MurmurOffsetMap(val memory: Int) extends OffsetMap {
         return -1L
       bytes.get(hash2)
       attempt += 1
-    } while(!Arrays.equals(hash1.array(), hash2))
+    } while(!util.Arrays.equals(hash1.array(), hash2))
     bytes.getLong()
   }
 
@@ -136,7 +135,7 @@ class MurmurOffsetMap(val memory: Int) extends OffsetMap {
     this.lookups = 0L
     this.probes = 0L
     this.lastOffset = -1L
-    Arrays.fill(bytes.array, bytes.arrayOffset, bytes.arrayOffset + bytes.limit(), 0.toByte)
+    util.Arrays.fill(bytes.array, bytes.arrayOffset, bytes.arrayOffset + bytes.limit(), 0.toByte)
   }
 
   /**
@@ -179,19 +178,24 @@ class MurmurOffsetMap(val memory: Int) extends OffsetMap {
    * @param buffer The buffer to store the hash into
    */
   private def hashInto(key: ByteBuffer, buffer: ByteBuffer): Unit = {
-    val ret = Murmur3.hash128(key.array)
+    key.mark()
 
+    val bytes = new Array[Byte](key.remaining)
+    key.get(bytes)
+
+    val ret = Murmur3.hash128(bytes)
     buffer.clear()
     buffer.putLong(ret(0))
     buffer.putLong(ret(1))
     buffer.flip()
+
+    key.reset()
   }
 
-//  private def hashInto(key: ByteBuffer, buffer: Array[Byte]): Unit = {
-//    val ret = Murmur3.hash128(key.array)
-//    val buf = ByteBuffer.wrap(buffer)
-//    buf.putLong(ret(0))
-//    buf.putLong(ret(1))
-//  }
+  def readString(buffer: ByteBuffer, encoding: String = Charset.defaultCharset.toString): String = {
+    val bytes = new Array[Byte](buffer.remaining)
+    buffer.get(bytes)
+    new String(bytes, encoding)
+  }
 
 }

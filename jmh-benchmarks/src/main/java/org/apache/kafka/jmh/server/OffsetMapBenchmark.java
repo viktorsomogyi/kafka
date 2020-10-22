@@ -20,20 +20,20 @@ package org.apache.kafka.jmh.server;
 import kafka.log.MurmurOffsetMap;
 import kafka.log.SkimpyOffsetMap;
 import org.openjdk.jmh.annotations.Benchmark;
+import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
 import org.openjdk.jmh.annotations.Level;
 import org.openjdk.jmh.annotations.Measurement;
+import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
 import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
-import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
 
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -45,11 +45,12 @@ import java.util.stream.Collectors;
 @Warmup(iterations = 3)
 @Measurement(iterations = 5)
 @Fork(1)
-@OutputTimeUnit(TimeUnit.MILLISECONDS)
+@OutputTimeUnit(TimeUnit.NANOSECONDS)
 @State(value = Scope.Benchmark)
-public class SkimpyOffsetMapBenchmark {
+@BenchmarkMode(Mode.AverageTime)
+public class OffsetMapBenchmark {
 
-    @Param({"1000000", "10000000", "100000000"})
+    @Param({"10000000"})
     public int logLength;
 
     @Param({"100"})
@@ -58,15 +59,13 @@ public class SkimpyOffsetMapBenchmark {
     @Param({"10"})
     public int keyLength;
 
-    @Param({"1048576", "10485760"})
+    @Param({"1048576"})
     public int memory;
 
     private Random random = new Random();
 
     private SkimpyOffsetMap skimpyOffsetMap;
-    private double maxSkimpyOffsetMapCollisionRate = 0.0;
     private MurmurOffsetMap murmurOffsetMap;
-    private double maxMurmurOffsetMapCollisionRate = 0.0;
     private ByteBuffer[] keys;
     private Map<Long, ByteBuffer> offsetToKeyMap;
 
@@ -92,12 +91,6 @@ public class SkimpyOffsetMapBenchmark {
         }
     }
 
-    @TearDown(Level.Trial)
-    public void tearDown() {
-        System.out.println(String.format("Max skimpy offset map collision rate: %s", maxSkimpyOffsetMapCollisionRate));
-        System.out.println(String.format("Max murmur offset map collision rate: %s", maxMurmurOffsetMapCollisionRate));
-    }
-
     private String nextRandomString(int length) {
         int leftLimit = 97; // letter 'a'
         int rightLimit = 122; // letter 'z'
@@ -111,25 +104,17 @@ public class SkimpyOffsetMapBenchmark {
     @Benchmark
     @Threads(1)
     public void measureMd5HashingSpeed() {
-        offsetToKeyMap.forEach((offset, key) -> {
-            skimpyOffsetMap.put(key, offset);
-        });
-        double currentCollisionRate = skimpyOffsetMap.collisionRate();
-        maxSkimpyOffsetMapCollisionRate = Math.max(currentCollisionRate, maxSkimpyOffsetMapCollisionRate);
+        skimpyOffsetMap.put(keys[random.nextInt(numKeys)], random.nextLong());
     }
 
     @Benchmark
     @Threads(1)
     public void measureMurmurHashingSpeed() {
-        offsetToKeyMap.forEach((offset, key) -> {
-            murmurOffsetMap.put(key, offset);
-        });
-        double currentCollisionRate = murmurOffsetMap.collisionRate();
-        maxMurmurOffsetMapCollisionRate = Math.max(currentCollisionRate, maxMurmurOffsetMapCollisionRate);
+        murmurOffsetMap.put(keys[random.nextInt(numKeys)], random.nextLong());
     }
 
     public static void main(String[] args) {
-        SkimpyOffsetMapBenchmark benchmark = new SkimpyOffsetMapBenchmark();
+        OffsetMapBenchmark benchmark = new OffsetMapBenchmark();
         benchmark.setupTrial();
         benchmark.measureMd5HashingSpeed();
         System.out.println(benchmark.skimpyOffsetMap.collisionRate());

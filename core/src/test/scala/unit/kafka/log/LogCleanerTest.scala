@@ -25,6 +25,7 @@ import java.util.Properties
 import java.util.concurrent.{CountDownLatch, TimeUnit}
 
 import kafka.common._
+import kafka.log.LogUtils._
 import kafka.server.{BrokerTopicStats, LogDirFailureChannel}
 import kafka.utils._
 import org.apache.kafka.common.TopicPartition
@@ -37,6 +38,7 @@ import org.scalatest.Assertions.{assertThrows, fail, intercept}
 
 import scala.collection._
 import scala.jdk.CollectionConverters._
+import scala.util.Random
 
 /**
  * Unit tests for the log cleaning logic
@@ -88,6 +90,36 @@ class LogCleanerTest {
     cleaner.cleanSegments(log, segments, map, 0L, stats, new CleanedTransactionMetadata)
     val shouldRemain = LogTest.keysInLog(log).filter(!keys.contains(_))
     assertEquals(shouldRemain, LogTest.keysInLog(log))
+    assertEquals(expectedBytesRead, stats.bytesRead)
+  }
+
+  @Test
+  def testCleanSegmentsWithMurmur(): Unit = {
+    val cleaner = makeCleaner(Int.MaxValue)
+    val logProps = new Properties()
+    logProps.put(LogConfig.SegmentBytesProp, 1024: java.lang.Integer)
+
+    val log = makeLog(config = LogConfig.fromProps(logConfig.originals, logProps))
+
+    // append messages to the log until we have four segments
+    val random = new Random()
+    val keys = Seq(1, 3, 5, 7, 9)
+    while(log.numberOfSegments < 4)
+      log.appendAsLeader(record(keys(random.nextInt(keys.size)), log.logEndOffset.toInt), leaderEpoch = 0)
+
+    // pretend we have the following keys
+
+    val map = new MurmurOffsetMap(1024)
+    cleaner.buildOffsetMap(log, log.logStartOffset, log.logEndOffset, map, new CleanerStats())
+
+    // clean the log
+    val segments = log.logSegments.take(3).toSeq
+    val stats = new CleanerStats()
+    val expectedBytesRead = segments.map(_.size).sum
+    cleaner.cleanSegments(log, segments, map, 0L, stats, new CleanedTransactionMetadata)
+    val keysInLog = LogTest.keysInLog(log)
+    assertEquals(s"Expected same size: $keys vs $keysInLog", keys.size, keysInLog.size)
+    assertEquals(keys.toSet, keysInLog.toSet)
     assertEquals(expectedBytesRead, stats.bytesRead)
   }
 
@@ -1660,36 +1692,17 @@ class LogCleanerTest {
   private def messageWithOffset(key: Int, value: Int, offset: Long): MemoryRecords =
     messageWithOffset(key.toString.getBytes, value.toString.getBytes, offset)
 
-  private def makeLog(dir: File = dir, config: LogConfig = logConfig, recoveryPoint: Long = 0L) =
-    Log(dir = dir, config = config, logStartOffset = 0L, recoveryPoint = recoveryPoint, scheduler = time.scheduler,
-      time = time, brokerTopicStats = new BrokerTopicStats, maxProducerIdExpirationMs = 60 * 60 * 1000,
-      producerIdExpirationCheckIntervalMs = LogManager.ProducerIdExpirationCheckIntervalMs,
-      logDirFailureChannel = new LogDirFailureChannel(10))
+  private def makeLog(dir: File = dir, config: LogConfig = LogConfig.fromProps(logConfig.originals, logProps), recoveryPoint: Long = 0L) =
+    createLog(dir, config, time, time.scheduler, recoveryPoint)
 
   private def makeCleaner(capacity: Int, checkDone: TopicPartition => Unit = _ => (), maxMessageSize: Int = 64*1024) =
-    new Cleaner(id = 0,
-                offsetMap = new FakeOffsetMap(capacity),
-                ioBufferSize = maxMessageSize,
-                maxIoBufferSize = maxMessageSize,
-                dupBufferLoadFactor = 0.75,
-                throttler = throttler,
-                time = time,
-                checkDone = checkDone)
+    createCleaner(capacity, time, throttler, checkDone, maxMessageSize)
 
   private def writeToLog(log: Log, seq: Iterable[(Int, Int)]): Iterable[Long] = {
     for ((key, value) <- seq) yield log.appendAsLeader(record(key, value), leaderEpoch = 0).firstOffset.get
   }
 
   private def key(id: Long) = ByteBuffer.wrap(id.toString.getBytes)
-
-  private def record(key: Int, value: Int,
-             producerId: Long = RecordBatch.NO_PRODUCER_ID,
-             producerEpoch: Short = RecordBatch.NO_PRODUCER_EPOCH,
-             sequence: Int = RecordBatch.NO_SEQUENCE,
-             partitionLeaderEpoch: Int = RecordBatch.NO_PARTITION_LEADER_EPOCH): MemoryRecords = {
-    MemoryRecords.withIdempotentRecords(RecordBatch.CURRENT_MAGIC_VALUE, 0L, CompressionType.NONE, producerId, producerEpoch, sequence,
-      partitionLeaderEpoch, new SimpleRecord(key.toString.getBytes, value.toString.getBytes))
-  }
 
   private def appendTransactionalAsLeader(log: Log,
                                           producerId: Long,
@@ -1732,9 +1745,6 @@ class LogCleanerTest {
     MemoryRecords.withEndTransactionMarker(offset, timestamp, RecordBatch.NO_PARTITION_LEADER_EPOCH,
       producerId, producerEpoch, endTxnMarker)
   }
-
-  private def record(key: Int, value: Array[Byte]): MemoryRecords =
-    TestUtils.singletonRecords(key = key.toString.getBytes, value = value)
 
   private def unkeyedRecord(value: Int): MemoryRecords =
     TestUtils.singletonRecords(value = value.toString.getBytes)
