@@ -6,18 +6,17 @@ import kafka.log.CleanedTransactionMetadata;
 import kafka.log.Cleaner;
 import kafka.log.CleanerStats;
 import kafka.log.Log;
-import kafka.log.LogCleaner$;
 import kafka.log.LogConfig;
 import kafka.log.LogUtils;
 import kafka.log.MurmurOffsetMap;
 import kafka.log.SkimpyOffsetMap;
 import kafka.utils.MockScheduler;
+import kafka.utils.MockTime;
 import kafka.utils.Scheduler;
 import kafka.utils.TestUtils;
 import kafka.utils.Throttler;
 import org.apache.kafka.common.record.CompressionType;
 import org.apache.kafka.common.record.RecordBatch;
-import org.apache.kafka.common.utils.SystemTime;
 import org.apache.kafka.common.utils.Time;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -55,14 +54,10 @@ public class LogCleanerBenchmark {
     @Param({"10485760"})
     public int memory;
 
-    @Param({"65536"})
-    public int maxMessageSize;
-
-    //"1024", "10485760", "104857600", "524288000", "1073741824"
     @Param({"10485760", "104857600", "524288000", "1073741824"})
     public int segmentSize;
 
-    @Param({"10", "100"})
+    @Param({"10", "100", "1000", "2000", "4000"})
     public int numKeys;
 
     @Param({"10"})
@@ -77,19 +72,16 @@ public class LogCleanerBenchmark {
     private CleanerStats md5CleanerStats;
     private CleanerStats murCleanerStats;
     private Log log;
-    private Time time;
-    private Scheduler scheduler;
-    private File dir;
-    private String[] keys;
 
     @Setup(Level.Invocation)
     public void setupTrial() {
-        time = Time.SYSTEM;
-        scheduler = new MockScheduler(time);
+        Time time = new MockTime();
+        Scheduler scheduler = new MockScheduler(time);
         skimpyOffsetMap = new SkimpyOffsetMap(memory, "MD5");
         murmurOffsetMap = new MurmurOffsetMap(memory);
         Throttler throttler = new Throttler(Double.MAX_VALUE, Long.MAX_VALUE,
             true, "throttler", "entries", time);
+        int maxMessageSize = 65536;
         md5Cleaner = new Cleaner(0, skimpyOffsetMap, maxMessageSize, maxMessageSize,
             0.75, throttler, time, tp -> BoxedUnit.UNIT);
         murCleaner = new Cleaner(0, murmurOffsetMap, maxMessageSize, maxMessageSize,
@@ -102,7 +94,7 @@ public class LogCleanerBenchmark {
         logProps.put(LogConfig.MessageTimestampDifferenceMaxMsProp(), Long.toString(Long.MAX_VALUE));
         LogConfig config = new LogConfig(logProps, Set$.MODULE$.empty());
 
-        dir = TestUtils.randomPartitionLogDir(TestUtils.tempDir());
+        File dir = TestUtils.randomPartitionLogDir(TestUtils.tempDir());
 
         log = LogUtils.createLog(dir, config, time, scheduler, 0);
 
@@ -114,7 +106,7 @@ public class LogCleanerBenchmark {
             } while (keysSet.contains(nextRandom));
             keysSet.add(nextRandom);
         }
-        keys = new ArrayList<>(keysSet).toArray(new String[]{});
+        String[] keys = new ArrayList<>(keysSet).toArray(new String[]{});
 
         long value = 0;
         while (log.numberOfSegments() < 4) {
@@ -133,9 +125,8 @@ public class LogCleanerBenchmark {
     private String nextRandomString(int length) {
         int leftLimit = 97; // letter 'a'
         int rightLimit = 122; // letter 'z'
-        int targetStringLength = 10;
         return random.ints(leftLimit, rightLimit + 1)
-            .limit(targetStringLength)
+            .limit(length)
             .collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append)
             .toString();
     }
@@ -144,8 +135,6 @@ public class LogCleanerBenchmark {
     @Threads(1)
     public void logCleanerWithMd5OffsetMap() {
         md5Cleaner.buildOffsetMap(log, log.logStartOffset(), log.logEndOffset(), skimpyOffsetMap, md5CleanerStats);
-//        md5Cleaner.buildOffsetMap(log, log.logStartOffset(), log.logEndOffset(), skimpyOffsetMap, new CleanerStats(time));
-//        CleanerStats stats = new CleanerStats(time);
         md5Cleaner.cleanSegments(log, log.logSegments().toSeq(), skimpyOffsetMap, 0L, md5CleanerStats, new CleanedTransactionMetadata());
     }
 
@@ -153,22 +142,15 @@ public class LogCleanerBenchmark {
     @Threads(1)
     public void logCleanerWithMurmurOffsetMap() {
         murCleaner.buildOffsetMap(log, log.logStartOffset(), log.logEndOffset(), murmurOffsetMap, murCleanerStats);
-//        CleanerStats stats = new CleanerStats(time);
         murCleaner.cleanSegments(log, log.logSegments().toSeq(), murmurOffsetMap, 0L, murCleanerStats, new CleanedTransactionMetadata());
     }
 
     @TearDown(Level.Invocation)
     public void tearDown() {
         printStats(0, "MD5 Map", log.logStartOffset(), log.logEndOffset(), md5CleanerStats);
-        printStats(0, "Mur Map", log.logStartOffset(), log.logEndOffset(), murCleanerStats);
-    }
-
-    private double mb(long bytes) {
-        return (double) bytes / (1024*1024);
-    }
-
-    private double mb(double bytes) {
-        return bytes / (1024*1024);
+        System.out.println("Collision rate for MD5: " + skimpyOffsetMap.collisionRate());
+        printStats(1, "Murmur Map", log.logStartOffset(), log.logEndOffset(), murCleanerStats);
+        System.out.println("Collision rate for Murmur: " + murmurOffsetMap.collisionRate());
     }
 
     private void printStats(int id, String name, long from, long to,  CleanerStats stats) {
@@ -190,5 +172,35 @@ public class LogCleanerBenchmark {
                 String.format("\t%.1f%% size reduction (%.1f%% fewer messages)%n", 100.0 * (1.0 - (double)stats.bytesWritten()/stats.bytesRead()),
                     100.0 * (1.0 - (double)stats.messagesWritten()/stats.messagesRead()));
         System.out.println(message);
+    }
+
+    private double mb(long bytes) {
+        return (double) bytes / (1024*1024);
+    }
+
+    private double mb(double bytes) {
+        return bytes / (1024*1024);
+    }
+
+    public static void main(String[] args) {
+        LogCleanerBenchmark benchmark = new LogCleanerBenchmark();
+        benchmark.memory = 10485760;
+        benchmark.segmentSize = 1073741824;
+        benchmark.numKeys = 4000;
+        benchmark.keyLength = 10;
+
+        benchmark.setupTrial();
+        benchmark.logCleanerWithMd5OffsetMap();
+        benchmark.tearDown();
+
+        double md5Coll = benchmark.skimpyOffsetMap.collisionRate();
+
+        benchmark.setupTrial();
+        benchmark.logCleanerWithMurmurOffsetMap();
+        benchmark.tearDown();
+
+        double murColl = benchmark.murmurOffsetMap.collisionRate();
+
+        System.out.println("Collision rate diff: " + (md5Coll - murColl));
     }
 }

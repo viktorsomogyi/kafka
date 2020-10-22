@@ -18,7 +18,6 @@
 package kafka.log
 
 import java.nio.ByteBuffer
-import java.nio.charset.Charset
 import java.util
 
 import kafka.utils._
@@ -191,11 +190,4 @@ class MurmurOffsetMap(val memory: Int) extends OffsetMap {
 
     key.reset()
   }
-
-  def readString(buffer: ByteBuffer, encoding: String = Charset.defaultCharset.toString): String = {
-    val bytes = new Array[Byte](buffer.remaining)
-    buffer.get(bytes)
-    new String(bytes, encoding)
-  }
-
 }
