@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements. See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.kafka.jmh.server;
 
 import kafka.api.ApiVersion;
@@ -36,6 +53,7 @@ import scala.collection.immutable.Set$;
 import scala.runtime.BoxedUnit;
 
 import java.io.File;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Properties;
@@ -112,8 +130,8 @@ public class LogCleanerBenchmark {
         while (log.numberOfSegments() < 4) {
             log.appendAsLeader(
                 TestUtils.singletonRecords(
-                    String.valueOf(value).getBytes(),
-                    keys[random.nextInt(numKeys)].getBytes(),
+                    String.valueOf(value).getBytes(Charset.defaultCharset()),
+                    keys[random.nextInt(numKeys)].getBytes(Charset.defaultCharset()),
                     CompressionType.NONE,
                     RecordBatch.NO_TIMESTAMP,
                     RecordBatch.CURRENT_MAGIC_VALUE
@@ -169,17 +187,17 @@ public class LogCleanerBenchmark {
                     mb(stats.bytesRead()) / (stats.elapsedSecs() - stats.elapsedIndexSecs()), 100 * (stats.elapsedSecs() - stats.elapsedIndexSecs()) / stats.elapsedSecs()) +
                 String.format("\tStart size: %,.1f MB (%,d messages)%n", mb(stats.bytesRead()), stats.messagesRead()) +
                 String.format("\tEnd size: %,.1f MB (%,d messages)%n", mb(stats.bytesWritten()), stats.messagesWritten()) +
-                String.format("\t%.1f%% size reduction (%.1f%% fewer messages)%n", 100.0 * (1.0 - (double)stats.bytesWritten()/stats.bytesRead()),
-                    100.0 * (1.0 - (double)stats.messagesWritten()/stats.messagesRead()));
+                String.format("\t%.1f%% size reduction (%.1f%% fewer messages)%n", 100.0 * (1.0 - (double) stats.bytesWritten() / stats.bytesRead()),
+                    100.0 * (1.0 - (double) stats.messagesWritten() / stats.messagesRead()));
         System.out.println(message);
     }
 
     private double mb(long bytes) {
-        return (double) bytes / (1024*1024);
+        return (double) bytes / (1024 * 1024);
     }
 
     private double mb(double bytes) {
-        return bytes / (1024*1024);
+        return bytes / (1024 * 1024);
     }
 
     public static void main(String[] args) {

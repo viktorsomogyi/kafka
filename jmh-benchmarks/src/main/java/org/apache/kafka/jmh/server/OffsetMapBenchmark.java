@@ -34,6 +34,7 @@ import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
 
 import java.nio.ByteBuffer;
+import java.nio.charset.Charset;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -83,7 +84,7 @@ public class OffsetMapBenchmark {
         }
         keys = keysSet
             .stream()
-            .map(k -> ByteBuffer.wrap(k.getBytes()))
+            .map(k -> ByteBuffer.wrap(k.getBytes(Charset.defaultCharset())))
             .collect(Collectors.toList()).toArray(new ByteBuffer[]{});
         offsetToKeyMap = new HashMap<>(logLength);
         for (long i = 0; i < logLength; ++i) {

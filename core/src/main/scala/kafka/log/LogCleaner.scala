@@ -295,9 +295,14 @@ class LogCleaner(initialConfig: CleanerConfig,
     if (config.dedupeBufferSize / config.numThreads > Int.MaxValue)
       warn("Cannot use more than 2G of cleaner buffer space per cleaner thread, ignoring excess buffer space...")
 
+    val offsetMapMemory = math.min(config.dedupeBufferSize / config.numThreads, Int.MaxValue).toInt
+    val offsetMap = if (config.hashAlgorithm == Defaults.ClouderaHashingAlgorithm)
+      new MurmurOffsetMap(offsetMapMemory)
+    else
+      new SkimpyOffsetMap(offsetMapMemory, hashAlgorithm = config.hashAlgorithm)
+
     val cleaner = new Cleaner(id = threadId,
-                              offsetMap = new SkimpyOffsetMap(memory = math.min(config.dedupeBufferSize / config.numThreads, Int.MaxValue).toInt,
-                                                              hashAlgorithm = config.hashAlgorithm),
+                              offsetMap = offsetMap,
                               ioBufferSize = config.ioBufferSize / config.numThreads / 2,
                               maxIoBufferSize = config.maxMessageSize,
                               dupBufferLoadFactor = config.dedupeBufferLoadFactor,
@@ -440,6 +445,7 @@ object LogCleaner {
   )
 
   def cleanerConfig(config: KafkaConfig): CleanerConfig = {
+    val algorithm = config.clouderaLogCleanerHashingAlgorithm
     CleanerConfig(numThreads = config.logCleanerThreads,
       dedupeBufferSize = config.logCleanerDedupeBufferSize,
       dedupeBufferLoadFactor = config.logCleanerDedupeBufferLoadFactor,
@@ -447,7 +453,8 @@ object LogCleaner {
       maxMessageSize = config.messageMaxBytes,
       maxIoBytesPerSecond = config.logCleanerIoMaxBytesPerSecond,
       backOffMs = config.logCleanerBackoffMs,
-      enableCleaner = config.logCleanerEnable)
+      enableCleaner = config.logCleanerEnable,
+      hashAlgorithm = algorithm)
 
   }
 
