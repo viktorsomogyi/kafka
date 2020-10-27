@@ -104,11 +104,15 @@ class LogCleanerTest {
     // append messages to the log until we have four segments
     val random = new Random()
     val keys = Seq(1, 3, 5, 7, 9)
-    while(log.numberOfSegments < 4)
-      log.appendAsLeader(record(keys(random.nextInt(keys.size)), log.logEndOffset.toInt), leaderEpoch = 0)
+    val latestValues = mutable.Map.empty[Int, Int]
+    while(log.numberOfSegments < 4) {
+      val key = keys(random.nextInt(keys.size))
+      val value = log.logEndOffset.toInt
+      latestValues.put(key, value)
+      log.appendAsLeader(record(key, value), leaderEpoch = 0)
+    }
 
     // pretend we have the following keys
-
     val map = new MurmurOffsetMap(1024)
     cleaner.buildOffsetMap(log, log.logStartOffset, log.logEndOffset, map, new CleanerStats())
 
@@ -117,9 +121,8 @@ class LogCleanerTest {
     val stats = new CleanerStats()
     val expectedBytesRead = segments.map(_.size).sum
     cleaner.cleanSegments(log, segments, map, 0L, stats, new CleanedTransactionMetadata)
-    val keysInLog = LogTest.keysInLog(log)
-    assertEquals(s"Expected same size: $keys vs $keysInLog", keys.size, keysInLog.size)
-    assertEquals(keys.toSet, keysInLog.toSet)
+
+    assertEquals(latestValues, LogTest.keysValuesInLog(log).map(f => f._1.toInt -> f._2.toInt))
     assertEquals(expectedBytesRead, stats.bytesRead)
   }
 
